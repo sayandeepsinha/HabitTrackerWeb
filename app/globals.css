@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #FDFBF7;
+  --foreground: #374151;
+  --card: #FFFFFF;
+  --card-foreground: #374151;
+  --popover: #FFFFFF;
+  --popover-foreground: #374151;
+  --primary: #374151;
+  --primary-foreground: #FDFBF7;
+  --secondary: #F5F0EB;
+  --secondary-foreground: #374151;
+  --muted: #F5F0EB;
+  --muted-foreground: #6B7280;
+  --accent: #E8F5E9;
+  --accent-foreground: #374151;
+  --destructive: #FECDD3;
+  --destructive-foreground: #9F1239;
+  --border: #E8E4DF;
+  --input: #E8E4DF;
+  --ring: #A7C7A2;
+  --chart-1: #A7C7A2;
+  --chart-2: #F9A8B8;
+  --chart-3: #A8D0E6;
+  --chart-4: #F6D6AD;
+  --chart-5: #C4B5E0;
+  --radius: 1rem;
+  --habit-yes: #D1FAE5;
+  --habit-yes-text: #065F46;
+  --habit-no: #FEE2E2;
+  --habit-no-text: #991B1B;
+  --peach: #FDE8D8;
+  --peach-foreground: #9A3412;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), 'Inter', sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-habit-yes: var(--habit-yes);
+  --color-habit-yes-text: var(--habit-yes-text);
+  --color-habit-no: var(--habit-no);
+  --color-habit-no-text: var(--habit-no-text);
+  --color-peach: var(--peach);
+  --color-peach-foreground: var(--peach-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
