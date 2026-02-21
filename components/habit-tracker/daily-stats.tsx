@@ -3,7 +3,7 @@
 import { useMemo } from "react"
 import { PieChart, Pie, Cell } from "recharts"
 import { getDate } from "date-fns"
-import type { CellState } from "./types"
+import type { CellState } from "./common/types"
 
 interface DailyStatsProps {
   grid: Record<string, CellState[]>
@@ -52,9 +52,9 @@ export function DailyStats({ grid, habits, daysInMonth, today, viewDate, isCurre
 
   const chartData = total > 0
     ? [
-        { name: "Yes", value: yesCount },
-        { name: "No", value: noCount },
-      ]
+      { name: "Yes", value: yesCount },
+      { name: "No", value: noCount },
+    ]
     : [{ name: "Empty", value: 1 }]
 
   const COLORS = total > 0 ? ["#A7C7A2", "#F9A8B8"] : ["#F0EDE8"]

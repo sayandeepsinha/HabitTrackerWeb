@@ -21,7 +21,9 @@ import type {
     HiddenHabits,
     Friend,
     FriendData,
-} from "@/components/habit-tracker/types"
+} from "@/components/habit-tracker/common/types"
+import { loadStore } from "@/components/habit-tracker/use-habit-store"
+import { loadFromStorage, saveToStorage } from "@/components/habit-tracker/common/storage"
 
 // --------------------------------------------------------------------------
 // Helpers
@@ -30,13 +32,7 @@ import type {
 const HIDDEN_KEY = "habit-tracker-hidden"
 
 function loadLocalHidden(): HiddenHabits {
-    if (typeof window === "undefined") return {}
-    try {
-        const raw = localStorage.getItem(HIDDEN_KEY)
-        return raw ? (JSON.parse(raw) as HiddenHabits) : {}
-    } catch {
-        return {}
-    }
+    return loadFromStorage(HIDDEN_KEY, {})
 }
 
 function generateCode(): string {
@@ -190,13 +186,7 @@ export function useFirebase(
                     setInviteCode(code)
 
                     // Read current localStorage to seed the Firestore doc
-                    let localStore: HabitStore = {}
-                    try {
-                        const raw = localStorage.getItem("habit-tracker-data")
-                        if (raw) localStore = JSON.parse(raw) as HabitStore
-                    } catch {
-                        /* empty */
-                    }
+                    const localStore = loadStore()
 
                     const profile = {
                         displayName: user.displayName ?? "",
@@ -251,11 +241,7 @@ export function useFirebase(
             setHiddenHabits((prev) => {
                 const next = { ...prev, [habit]: !prev[habit] }
                 // Save locally
-                try {
-                    localStorage.setItem(HIDDEN_KEY, JSON.stringify(next))
-                } catch {
-                    /* empty */
-                }
+                saveToStorage(HIDDEN_KEY, next)
                 // Sync to Firestore
                 if (user) {
                     setDoc(

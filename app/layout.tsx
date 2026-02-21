@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   title: 'Habit Tracker',
   description: 'A beautiful, minimalist habit tracking dashboard',
   generator: 'v0.app',
+  manifest: '/manifest.json',
   icons: {
     icon: [
       {

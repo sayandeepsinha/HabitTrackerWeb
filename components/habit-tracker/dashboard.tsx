@@ -4,49 +4,14 @@ import { useEffect, useRef, useCallback } from "react"
 import { format } from "date-fns"
 import { useFirebase } from "@/hooks/use-firebase"
 import { useHabitStore, getCalendarWeekData } from "./use-habit-store"
-import type { HabitStore } from "./types"
+import type { HabitStore } from "./common/types"
 import { AuthScreen } from "./auth-screen"
 import { MotivationWidget } from "./motivation-widget"
 import { WeeklyProgress } from "./weekly-progress"
 import { DailyStats } from "./daily-stats"
 import { HabitGrid } from "./habit-grid"
 import { FriendsSection } from "./friends-section"
-
-// ---------------------------------------------------------------------------
-// Avatar shown in header when signed in
-// ---------------------------------------------------------------------------
-function UserAvatar({
-  photoURL,
-  displayName,
-}: {
-  photoURL?: string | null
-  displayName?: string | null
-}) {
-  if (photoURL) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={photoURL}
-        alt={displayName ?? "User"}
-        width={32}
-        height={32}
-        className="h-8 w-8 rounded-full object-cover"
-        referrerPolicy="no-referrer"
-      />
-    )
-  }
-  const initials = (displayName ?? "?")
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
-  return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-chart-3 text-xs font-bold text-foreground">
-      {initials}
-    </div>
-  )
-}
+import { Avatar } from "./common/avatar"
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -281,9 +246,9 @@ export function HabitDashboard() {
 
             {/* User menu */}
             <div className="flex items-center gap-2 rounded-xl bg-card px-3 py-1.5 shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-              <UserAvatar
-                photoURL={user.photoURL}
-                displayName={user.displayName}
+              <Avatar
+                src={user.photoURL}
+                name={user.displayName}
               />
               <span className="max-w-[100px] truncate text-xs font-medium text-foreground">
                 {user.displayName ?? user.email}

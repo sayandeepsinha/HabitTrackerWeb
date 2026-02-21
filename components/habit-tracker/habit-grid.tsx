@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { getDay, startOfMonth } from "date-fns"
-import type { CellState, HiddenHabits } from "./types"
+import { getDay } from "date-fns"
+import type { CellState, HiddenHabits } from "./common/types"
 
 interface HabitGridProps {
   habits: string[]
@@ -165,8 +165,6 @@ export function HabitGrid({
     return DAY_ABBREVS[dow]
   })
 
-  // startOfMonth referenced to avoid unused import warning
-  void startOfMonth
 
   const noData = !visibleHabits.length
 
@@ -234,8 +232,8 @@ export function HabitGrid({
                 <th
                   key={day}
                   className={`px-0.5 pt-1 pb-3 text-center text-xs font-medium ${dayOfWeekLabels[i] === "Sat" || dayOfWeekLabels[i] === "Sun"
-                      ? "text-chart-2"
-                      : "text-muted-foreground"
+                    ? "text-chart-2"
+                    : "text-muted-foreground"
                     }`}
                 >
                   {day}
@@ -312,8 +310,8 @@ export function HabitGrid({
                         title={isHidden ? "Hidden from friends – click to show" : "Visible to friends – click to hide"}
                         aria-label={isHidden ? `Show ${habit} to friends` : `Hide ${habit} from friends`}
                         className={`flex h-6 w-6 items-center justify-center rounded-lg transition-all hover:scale-110 ${isHidden
-                            ? "text-muted-foreground/40 hover:text-muted-foreground"
-                            : "text-chart-1 hover:text-chart-1/70"
+                          ? "text-muted-foreground/40 hover:text-muted-foreground"
+                          : "text-chart-1 hover:text-chart-1/70"
                           }`}
                       >
                         {isHidden ? <EyeOffIcon /> : <EyeIcon />}

@@ -2,28 +2,31 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { getDaysInMonth, format, startOfWeek, addDays, getDate } from "date-fns"
-import type { CellState, MonthData, HabitStore } from "./types"
+import type { CellState, MonthData, HabitStore } from "./common/types"
+import { loadFromStorage, saveToStorage } from "./common/storage"
+import { getMonthKey, useHabitView } from "./use-habit-view"
 
 const STORAGE_KEY = "habit-tracker-data"
 const DEFAULT_HABITS = ["Leetcode", "Workout", "No Sugar", "Meditate"]
 
-function loadStore(): HabitStore {
-  if (typeof window === "undefined") return {}
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as HabitStore) : {}
-  } catch {
-    return {}
-  }
+export function loadStore(): HabitStore {
+  return loadFromStorage(STORAGE_KEY, {})
 }
 
 function saveStore(store: HabitStore) {
-  if (typeof window === "undefined") return
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
-  } catch {
-    // storage full or unavailable
-  }
+  saveToStorage(STORAGE_KEY, store)
+}
+
+export function ensureMonthExists(data: HabitStore, today: Date): HabitStore {
+  const key = getMonthKey(today)
+  if (data[key]) return data
+
+  const sortedKeys = Object.keys(data).sort().reverse()
+  const lastHabits =
+    sortedKeys.length > 0 ? data[sortedKeys[0]].habits : DEFAULT_HABITS
+  const newMonth = createMonthData(today.getFullYear(), today.getMonth(), lastHabits)
+
+  return { ...data, [key]: newMonth }
 }
 
 function createMonthData(year: number, month: number, habits: string[]): MonthData {
@@ -35,55 +38,10 @@ function createMonthData(year: number, month: number, habits: string[]): MonthDa
   return { habits: [...habits], grid }
 }
 
-function getMonthKey(date: Date): string {
-  return format(date, "yyyy-MM")
-}
-
 export function cycleState(state: CellState): CellState {
   if (state === "blank") return "yes"
   if (state === "yes") return "no"
   return "blank"
-}
-
-/** Compute current streak for a habit looking backward from today across all months */
-export function computeCurrentStreak(
-  store: HabitStore,
-  habit: string,
-  today: Date
-): number {
-  let streak = 0
-  const current = new Date(today)
-
-  while (true) {
-    const key = getMonthKey(current)
-    const monthData = store[key]
-    if (!monthData || !monthData.grid[habit]) break
-
-    const dayIdx = getDate(current) - 1
-    if (monthData.grid[habit][dayIdx] === "yes") {
-      streak++
-      current.setDate(current.getDate() - 1)
-    } else {
-      break
-    }
-  }
-
-  return streak
-}
-
-/** Compute best streak within a single month */
-export function computeBestStreak(cells: CellState[]): number {
-  let best = 0
-  let current = 0
-  for (const cell of cells) {
-    if (cell === "yes") {
-      current++
-      best = Math.max(best, current)
-    } else {
-      current = 0
-    }
-  }
-  return best
 }
 
 /** Get weekly data for the current real calendar week (Mon-Sun) */
@@ -124,29 +82,15 @@ export function getCalendarWeekData(
  */
 export function useHabitStore() {
   const [store, setStoreState] = useState<HabitStore>({})
-  const [viewDate, setViewDate] = useState<Date>(new Date())
   const [hydrated, setHydrated] = useState(false)
 
   const today = useMemo(() => new Date(), [])
   const currentMonthKey = useMemo(() => getMonthKey(today), [today])
-  const viewMonthKey = useMemo(() => getMonthKey(viewDate), [viewDate])
-  const isCurrentMonth = viewMonthKey === currentMonthKey
-  const daysInViewMonth = getDaysInMonth(viewDate)
-
 
   // Hydrate from localStorage on mount
   useEffect(() => {
     const loaded = loadStore()
-
-    const key = getMonthKey(today)
-    if (!loaded[key]) {
-      const sortedKeys = Object.keys(loaded).sort().reverse()
-      const lastHabits =
-        sortedKeys.length > 0 ? loaded[sortedKeys[0]].habits : DEFAULT_HABITS
-      loaded[key] = createMonthData(today.getFullYear(), today.getMonth(), lastHabits)
-    }
-
-    setStoreState(loaded)
+    setStoreState(ensureMonthExists(loaded, today))
     setHydrated(true)
   }, [today])
 
@@ -166,20 +110,22 @@ export function useHabitStore() {
   // Ensure current month exists
   useEffect(() => {
     if (!hydrated) return
-    const key = getMonthKey(today)
-    if (!store[key]) {
-      const sortedKeys = Object.keys(store).sort().reverse()
-      const lastHabits =
-        sortedKeys.length > 0 ? store[sortedKeys[0]].habits : DEFAULT_HABITS
-      const newMonth = createMonthData(today.getFullYear(), today.getMonth(), lastHabits)
-      setStore((prev) => ({ ...prev, [key]: newMonth }))
-    }
+    setStore((prev) => ensureMonthExists(prev, today))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, today])
 
-  const viewMonthData: MonthData | null = useMemo(() => {
-    return store[viewMonthKey] ?? null
-  }, [store, viewMonthKey])
+  const {
+    viewDate,
+    viewMonthKey,
+    viewMonthData,
+    isCurrentMonth,
+    daysInViewMonth,
+    canGoNext,
+    goToPrevMonth,
+    goToNextMonth,
+    currentStreaks,
+    bestStreaks
+  } = useHabitView(store, today)
 
   const updateCell = useCallback(
     (habit: string, dayIdx: number) => {
@@ -249,45 +195,6 @@ export function useHabitStore() {
     },
     [isCurrentMonth, currentMonthKey, setStore]
   )
-
-  const goToPrevMonth = useCallback(() => {
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
-  }, [])
-
-  const goToNextMonth = useCallback(() => {
-    setViewDate((prev) => {
-      const next = new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-      if (next > new Date(today.getFullYear(), today.getMonth(), 1)) return prev
-      return next
-    })
-  }, [today])
-
-  const canGoNext = useMemo(() => {
-    const nextMonth = new Date(
-      viewDate.getFullYear(),
-      viewDate.getMonth() + 1,
-      1
-    )
-    return nextMonth <= new Date(today.getFullYear(), today.getMonth(), 1)
-  }, [viewDate, today])
-
-  const currentStreaks = useMemo(() => {
-    if (!viewMonthData) return {}
-    const streaks: Record<string, number> = {}
-    for (const habit of viewMonthData.habits) {
-      streaks[habit] = computeCurrentStreak(store, habit, today)
-    }
-    return streaks
-  }, [store, viewMonthData, today])
-
-  const bestStreaks = useMemo(() => {
-    if (!viewMonthData) return {}
-    const streaks: Record<string, number> = {}
-    for (const habit of viewMonthData.habits) {
-      streaks[habit] = computeBestStreak(viewMonthData.grid[habit] || [])
-    }
-    return streaks
-  }, [viewMonthData])
 
   // Allow external code (e.g. Firestore sync) to push data into the store
   const setStoreDirectly = useCallback((newStore: HabitStore) => {

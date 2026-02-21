@@ -1,6 +1,6 @@
-import { initializeApp, getApps } from "firebase/app"
+import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
-import { getFirestore } from "firebase/firestore"
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore"
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,7 +12,20 @@ const firebaseConfig = {
 }
 
 // Avoid re-initialising on hot-reload in Next.js
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0]
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 
 export const auth = getAuth(app)
 export const db = getFirestore(app)
+
+// Enable offline persistence
+if (typeof window !== "undefined") {
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code === 'failed-precondition') {
+            // Multiple tabs open, persistence can only be enabled in one tab at a time.
+            console.warn("Persistence failed: Multiple tabs open");
+        } else if (err.code === 'unimplemented') {
+            // The current browser doesn't support all of the features required to enable persistence
+            console.warn("Persistence failed: Browser not supported");
+        }
+    });
+}

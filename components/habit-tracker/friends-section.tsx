@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { format, getDaysInMonth } from "date-fns"
+import { useState } from "react"
+import { format } from "date-fns"
 import { HabitGrid } from "./habit-grid"
-import { computeCurrentStreak, computeBestStreak } from "./use-habit-store"
-import type { Friend, FriendData } from "./types"
+import { useHabitView } from "./use-habit-view"
+import { Avatar } from "./common/avatar"
+import type { Friend, FriendData } from "./common/types"
 import type { FriendRequest } from "@/hooks/use-firebase"
 
 interface FriendsSectionProps {
@@ -19,34 +20,6 @@ interface FriendsSectionProps {
     addFriendLoading: boolean
     onRemoveFriend: (uid: string) => void
     today: Date
-}
-
-// ---------------------------------------------------------------------------
-// Avatar
-// ---------------------------------------------------------------------------
-function Avatar({ src, name, size = 32 }: { src?: string; name: string; size?: number }) {
-    if (src) {
-        // eslint-disable-next-line @next/next/no-img-element
-        return (
-            <img
-                src={src}
-                alt={name}
-                width={size}
-                height={size}
-                className="rounded-full object-cover"
-                referrerPolicy="no-referrer"
-            />
-        )
-    }
-    const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
-    return (
-        <div
-            style={{ width: size, height: size }}
-            className="flex flex-shrink-0 items-center justify-center rounded-full bg-chart-3 text-[11px] font-bold text-foreground"
-        >
-            {initials || "?"}
-        </div>
-    )
 }
 
 // ---------------------------------------------------------------------------
@@ -97,36 +70,21 @@ function FriendCard({
     today: Date
     onRemove: () => void
 }) {
-    const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1))
+    const {
+        viewDate,
+        isCurrentMonth,
+        daysInViewMonth,
+        habits,
+        grid,
+        canGoNext,
+        goToPrevMonth,
+        goToNextMonth,
+        currentStreaks,
+        bestStreaks
+    } = useHabitView(data.store, today)
+
     const [expanded, setExpanded] = useState(true)
     const [confirmRemove, setConfirmRemove] = useState(false)
-
-    const viewMonthKey = format(viewDate, "yyyy-MM")
-    const isCurrentMonth =
-        viewDate.getFullYear() === today.getFullYear() &&
-        viewDate.getMonth() === today.getMonth()
-    const daysInViewMonth = getDaysInMonth(viewDate)
-
-    const monthData = data.store[viewMonthKey]
-    const habits = monthData?.habits ?? []
-    const grid = monthData?.grid ?? {}
-
-    const canGoNext = useMemo(() => {
-        const next = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
-        return next <= new Date(today.getFullYear(), today.getMonth(), 1)
-    }, [viewDate, today])
-
-    const currentStreaks = useMemo(() => {
-        const s: Record<string, number> = {}
-        for (const h of habits) s[h] = computeCurrentStreak(data.store, h, today)
-        return s
-    }, [data.store, habits, today])
-
-    const bestStreaks = useMemo(() => {
-        const s: Record<string, number> = {}
-        for (const h of habits) s[h] = computeBestStreak(grid[h] ?? [])
-        return s
-    }, [grid, habits])
 
     return (
         <div className="overflow-hidden rounded-3xl bg-card shadow-[0_2px_20px_rgba(0,0,0,0.04)]">
@@ -143,7 +101,7 @@ function FriendCard({
                 {/* Month navigation */}
                 <div className="mr-2 flex items-center gap-2">
                     <button
-                        onClick={() => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                        onClick={goToPrevMonth}
                         className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
                         aria-label="Previous month"
                     >
@@ -155,12 +113,7 @@ function FriendCard({
                         {format(viewDate, "MMM yyyy")}
                     </span>
                     <button
-                        onClick={() =>
-                            setViewDate((d) => {
-                                const next = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-                                return next > new Date(today.getFullYear(), today.getMonth(), 1) ? d : next
-                            })
-                        }
+                        onClick={goToNextMonth}
                         disabled={!canGoNext}
                         className="flex h-7 w-7 items-center justify-center rounded-lg bg-secondary text-muted-foreground transition-colors hover:bg-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
                         aria-label="Next month"
