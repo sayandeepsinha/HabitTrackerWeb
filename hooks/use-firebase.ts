@@ -101,6 +101,7 @@ export function useFirebase(
     storeCallbackRef.current = setStoreFromFirestore
 
     const firestoreConnected = useRef(false)
+    const [firestoreReady, setFirestoreReady] = useState(false)
     const friendUnsubs = useRef<Record<string, () => void>>({})
 
     // -----------------------------------------------------------------------
@@ -182,6 +183,7 @@ export function useFirebase(
                     }
 
                     firestoreConnected.current = true
+                    setFirestoreReady(true)
                 } else {
                     // Brand-new user — create Firestore doc from current localStorage
                     const code = generateCode()
@@ -214,6 +216,7 @@ export function useFirebase(
                         .catch((e) => console.error("[Firebase] ❌ user doc create FAILED:", e))
 
                     firestoreConnected.current = true
+                    setFirestoreReady(true)
                 }
             },
             (err) => {
@@ -444,6 +447,7 @@ export function useFirebase(
     return {
         user,
         authLoading,
+        firestoreReady,
         inviteCode,
         hiddenHabits,
         toggleHidden,

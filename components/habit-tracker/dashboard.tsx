@@ -93,6 +93,7 @@ export function HabitDashboard() {
   const {
     user,
     authLoading,
+    firestoreReady,
     inviteCode,
     hiddenHabits,
     toggleHidden,
@@ -110,12 +111,13 @@ export function HabitDashboard() {
   } = useFirebase(handleFirestoreUpdate)
 
   // Sync store → Firestore whenever the store changes.
-  // Skip if the change came FROM Firestore (tracked via reference equality).
+  // CRITICAL: Wait for firestoreReady before writing — otherwise on a new
+  // domain, empty localStorage defaults would overwrite real Firestore data.
   useEffect(() => {
-    if (!hydrated) return
+    if (!hydrated || !firestoreReady) return
     if (store === lastFirestoreStore.current) return
     syncStoreToFirestore(store)
-  }, [store, hydrated, syncStoreToFirestore])
+  }, [store, hydrated, firestoreReady, syncStoreToFirestore])
 
   // -----------------------------------------------------------------------
   // Loading + auth gating
