@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { MobileGuard } from '@/components/habit-tracker/mobile-guard'
+import { DevSwCleanup } from '@/components/habit-tracker/dev-sw-cleanup'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -34,6 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
+        <DevSwCleanup />
         <MobileGuard>
           {children}
         </MobileGuard>
