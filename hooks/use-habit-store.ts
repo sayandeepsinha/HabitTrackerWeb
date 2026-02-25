@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { getDaysInMonth, format, startOfWeek, addDays, getDate } from "date-fns"
-import type { CellState, MonthData, HabitStore } from "./common/types"
-import { loadFromStorage, saveToStorage } from "./common/storage"
+import type { CellState, MonthData, HabitStore } from "@/components/habit-tracker/common/types"
+import { loadFromStorage, saveToStorage } from "@/components/habit-tracker/common/storage"
 import { getMonthKey, useHabitView } from "./use-habit-view"
 
 const STORAGE_KEY = "habit-tracker-data"
-const DEFAULT_HABITS = ["Leetcode", "Workout", "No Sugar", "Meditate"]
+const FALLBACK_HABITS = ["Leetcode", "Workout", "No Sugar", "Meditate"]
 
 export function loadStore(): HabitStore {
   return loadFromStorage(STORAGE_KEY, {})
@@ -17,13 +17,13 @@ function saveStore(store: HabitStore) {
   saveToStorage(STORAGE_KEY, store)
 }
 
-export function ensureMonthExists(data: HabitStore, today: Date): HabitStore {
+export function ensureMonthExists(data: HabitStore, today: Date, defaultHabits?: string[]): HabitStore {
   const key = getMonthKey(today)
   if (data[key]) return data
 
   const sortedKeys = Object.keys(data).sort().reverse()
   const lastHabits =
-    sortedKeys.length > 0 ? data[sortedKeys[0]].habits : DEFAULT_HABITS
+    sortedKeys.length > 0 ? data[sortedKeys[0]].habits : (defaultHabits ?? FALLBACK_HABITS)
   const newMonth = createMonthData(today.getFullYear(), today.getMonth(), lastHabits)
 
   return { ...data, [key]: newMonth }
@@ -80,7 +80,7 @@ export function getCalendarWeekData(
  * callback that fires on every store mutation — useFirebase hooks into this to
  * sync changes to Firestore in the background.
  */
-export function useHabitStore() {
+export function useHabitStore(defaultHabits?: string[]) {
   const [store, setStoreState] = useState<HabitStore>({})
   const [hydrated, setHydrated] = useState(false)
 
@@ -90,7 +90,7 @@ export function useHabitStore() {
   // Hydrate from localStorage on mount
   useEffect(() => {
     const loaded = loadStore()
-    setStoreState(ensureMonthExists(loaded, today))
+    setStoreState(ensureMonthExists(loaded, today, defaultHabits))
     setHydrated(true)
   }, [today])
 
@@ -110,7 +110,7 @@ export function useHabitStore() {
   // Ensure current month exists
   useEffect(() => {
     if (!hydrated) return
-    setStore((prev) => ensureMonthExists(prev, today))
+    setStore((prev) => ensureMonthExists(prev, today, defaultHabits))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, today])
 
@@ -196,6 +196,28 @@ export function useHabitStore() {
     [isCurrentMonth, currentMonthKey, setStore]
   )
 
+  const reorderHabit = useCallback(
+    (name: string, direction: "up" | "down") => {
+      if (!isCurrentMonth) return
+      setStore((prev) => {
+        const key = currentMonthKey
+        const month = prev[key]
+        if (!month) return prev
+        const idx = month.habits.indexOf(name)
+        if (idx === -1) return prev
+        const swapIdx = direction === "up" ? idx - 1 : idx + 1
+        if (swapIdx < 0 || swapIdx >= month.habits.length) return prev
+        const newHabits = [...month.habits]
+          ;[newHabits[idx], newHabits[swapIdx]] = [newHabits[swapIdx], newHabits[idx]]
+        return {
+          ...prev,
+          [key]: { ...month, habits: newHabits },
+        }
+      })
+    },
+    [isCurrentMonth, currentMonthKey, setStore]
+  )
+
   // Allow external code (e.g. Firestore sync) to push data into the store
   const setStoreDirectly = useCallback((newStore: HabitStore) => {
     setStoreState(newStore)
@@ -215,6 +237,7 @@ export function useHabitStore() {
     updateCell,
     addHabit,
     removeHabit,
+    reorderHabit,
     goToPrevMonth,
     goToNextMonth,
     canGoNext,

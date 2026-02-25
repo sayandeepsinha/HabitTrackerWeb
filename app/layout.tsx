@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
 import { MobileGuard } from '@/components/habit-tracker/mobile-guard'
 import { DevSwCleanup } from '@/components/habit-tracker/dev-sw-cleanup'
 
@@ -33,13 +34,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <DevSwCleanup />
-        <MobileGuard>
-          {children}
-        </MobileGuard>
-        <Analytics />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <DevSwCleanup />
+          <MobileGuard>
+            {children}
+          </MobileGuard>
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useEffect, useRef, useCallback } from "react"
-import { format } from "date-fns"
 import { useFirebase } from "@/hooks/use-firebase"
-import { useHabitStore, getCalendarWeekData } from "./use-habit-store"
+import { useSettings } from "@/hooks/use-settings"
+import { useHabitStore, getCalendarWeekData } from "@/hooks/use-habit-store"
 import type { HabitStore } from "./common/types"
 import { AuthScreen } from "./auth-screen"
 import { MotivationWidget } from "./motivation-widget"
@@ -11,26 +11,16 @@ import { WeeklyProgress } from "./weekly-progress"
 import { DailyStats } from "./daily-stats"
 import { HabitGrid } from "./habit-grid"
 import { FriendsSection } from "./friends-section"
-import { Avatar } from "./common/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { SettingsDialog } from "./settings"
+import { DashboardHeader } from "./dashboard-header"
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 
 export function HabitDashboard() {
+  // Settings (theme, week start day, default habits)
+  const { settings } = useSettings()
+
   // Habit store — always loads from localStorage instantly.
   // We get setStoreDirectly so Firebase can push Firestore data into React state.
   const {
@@ -46,11 +36,12 @@ export function HabitDashboard() {
     updateCell,
     addHabit,
     removeHabit,
+    reorderHabit,
     goToPrevMonth,
     goToNextMonth,
     canGoNext,
     setStoreDirectly,
-  } = useHabitStore()
+  } = useHabitStore(settings.defaultHabits)
 
   // Track Firestore-sourced updates to avoid infinite sync loops.
   // When Firestore pushes data, we record the object reference. If the store
@@ -86,29 +77,11 @@ export function HabitDashboard() {
     removeFriend,
     signOut,
     syncStoreToFirestore,
+    updateDisplayName,
+    deleteAccount,
   } = useFirebase(handleFirestoreUpdate)
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
-
-  const handleClearCache = async () => {
-    try {
-      if ('caches' in window) {
-        const cacheNames = await caches.keys()
-        await Promise.all(cacheNames.map(name => caches.delete(name)))
-      }
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations()
-        for (const registration of registrations) {
-          await registration.unregister()
-        }
-      }
-      window.location.reload()
-    } catch (error) {
-      console.error("Failed to clear cache:", error)
-      // Fallback reload if something fails
-      window.location.reload()
-    }
-  }
 
   // Sync store → Firestore whenever the store changes.
   // CRITICAL: Wait for firestoreReady before writing — otherwise on a new
@@ -155,181 +128,16 @@ export function HabitDashboard() {
 
   return (
     <div className="min-h-screen bg-background px-6 py-8 lg:px-12 lg:py-10">
-      <header className="mx-auto mb-8 max-w-[1440px]">
-        <div className="flex items-end justify-between">
-          {/* Brand */}
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Habit Tracker
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Track your daily habits and build streaks
-            </p>
-          </div>
-
-          {/* Month Navigation */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={goToPrevMonth}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-card text-muted-foreground shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-colors hover:bg-secondary hover:text-foreground"
-              aria-label="Previous month"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M10 4L6 8L10 12"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-
-            <div className="min-w-[180px] rounded-xl bg-card px-5 py-2 text-center shadow-[0_1px_8px_rgba(0,0,0,0.04)]">
-              <span className="text-sm font-semibold text-foreground">
-                {format(viewDate, "MMMM yyyy")}
-              </span>
-              {!isCurrentMonth && (
-                <span className="ml-2 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  View only
-                </span>
-              )}
-            </div>
-
-            <button
-              onClick={goToNextMonth}
-              disabled={!canGoNext}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-card text-muted-foreground shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-              aria-label="Next month"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M6 4L10 8L6 12"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Legend + User */}
-          <div className="flex items-center gap-4">
-            {/* Legend */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 14 14"
-                  fill="none"
-                  className="text-chart-1"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2.5 7.5L5.5 10.5L11.5 3.5"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span className="text-xs font-medium text-accent-foreground">
-                  Yes
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-habit-no px-3 py-1.5">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  className="text-habit-no-text"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M2.5 2.5L9.5 9.5M9.5 2.5L2.5 9.5"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="text-xs font-medium text-habit-no-text">
-                  No
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm bg-border" />
-                <span className="text-xs font-medium text-muted-foreground">
-                  Blank
-                </span>
-              </div>
-            </div>
-
-            {/* User menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div role="button" tabIndex={0} className="flex cursor-pointer items-center gap-2 rounded-xl bg-card px-3 py-1.5 shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-colors hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar
-                    src={user.photoURL}
-                    name={user.displayName}
-                  />
-                  <span className="max-w-[100px] truncate text-xs font-medium text-foreground">
-                    {user.displayName ?? user.email}
-                  </span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    className="ml-1 text-muted-foreground"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M3 4.5L6 7.5L9 4.5"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="mr-2 opacity-70">
-                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut} className="text-red-500 focus:bg-red-50 focus:text-red-600 dark:text-red-400 dark:focus:bg-red-950 dark:focus:text-red-300">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="mr-2">
-                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <polyline points="16 17 21 12 16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        viewDate={viewDate}
+        isCurrentMonth={isCurrentMonth}
+        canGoNext={canGoNext}
+        goToPrevMonth={goToPrevMonth}
+        goToNextMonth={goToNextMonth}
+        user={user}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        signOut={signOut}
+      />
 
       <main className="mx-auto max-w-[1440px]">
         {/* Top Widgets Row */}
@@ -361,6 +169,7 @@ export function HabitDashboard() {
           onToggle={updateCell}
           onAddHabit={addHabit}
           onRemoveHabit={removeHabit}
+          onReorderHabit={reorderHabit}
           hiddenHabits={hiddenHabits}
           onToggleHidden={toggleHidden}
         />
@@ -381,32 +190,13 @@ export function HabitDashboard() {
         />
 
         {/* Settings Dialog */}
-        <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Settings</DialogTitle>
-              <DialogDescription>
-                Manage your account settings and application preferences.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="mb-2 text-sm font-medium leading-none">System</h4>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    If you are experiencing issues with the app or want to clear local data.
-                  </p>
-                  <button
-                    onClick={handleClearCache}
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    Clear Cache & Reload
-                  </button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <SettingsDialog
+          open={isSettingsOpen}
+          onOpenChange={setIsSettingsOpen}
+          user={user}
+          updateDisplayName={updateDisplayName}
+          deleteAccount={deleteAccount}
+        />
       </main>
     </div>
   )

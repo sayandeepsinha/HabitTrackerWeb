@@ -61,7 +61,7 @@ export function WeeklyProgress({ weekData }: WeeklyProgressProps) {
               dataKey="label"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: "#6B7280" }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               dy={8}
             />
             <YAxis
@@ -73,7 +73,7 @@ export function WeeklyProgress({ weekData }: WeeklyProgressProps) {
               {data.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={entry.isFuture ? "#F0EDE8" : entry.percentage > 0 ? "#A7C7A2" : "#E8E4DF"}
+                  fill={entry.isFuture ? "var(--secondary)" : entry.percentage > 0 ? "var(--chart-1)" : "var(--border)"}
                   opacity={entry.isFuture ? 0.3 : entry.percentage > 0 ? 0.6 + (entry.percentage / 100) * 0.4 : 0.5}
                 />
               ))}

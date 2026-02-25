@@ -37,6 +37,39 @@
   --peach-foreground: #9A3412;
 }
 
+.dark {
+  --background: #111113;
+  --foreground: #E5E7EB;
+  --card: #1A1A1E;
+  --card-foreground: #E5E7EB;
+  --popover: #1A1A1E;
+  --popover-foreground: #E5E7EB;
+  --primary: #E5E7EB;
+  --primary-foreground: #111113;
+  --secondary: #252529;
+  --secondary-foreground: #E5E7EB;
+  --muted: #252529;
+  --muted-foreground: #9CA3AF;
+  --accent: #1B3A2A;
+  --accent-foreground: #D1FAE5;
+  --destructive: #4C1D28;
+  --destructive-foreground: #FCA5A5;
+  --border: #2E2E33;
+  --input: #2E2E33;
+  --ring: #6B9E6B;
+  --chart-1: #6B9E6B;
+  --chart-2: #D97F99;
+  --chart-3: #6BAAC5;
+  --chart-4: #D4A96A;
+  --chart-5: #9B85C8;
+  --habit-yes: #1B3A2A;
+  --habit-yes-text: #6EE7B7;
+  --habit-no: #4C1D28;
+  --habit-no-text: #FCA5A5;
+  --peach: #3D2415;
+  --peach-foreground: #FDBA74;
+}
+
 @theme inline {
   --font-sans: var(--font-inter), 'Inter', sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';

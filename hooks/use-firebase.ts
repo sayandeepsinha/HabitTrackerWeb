@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import {
     onAuthStateChanged,
     signOut as firebaseSignOut,
+    updateProfile,
     type User,
 } from "firebase/auth"
 import {
     doc,
     setDoc,
     getDoc,
+    getDocs,
     onSnapshot,
     collection,
     deleteDoc,
@@ -21,8 +23,9 @@ import type {
     HiddenHabits,
     Friend,
     FriendData,
+    FriendRequest,
 } from "@/components/habit-tracker/common/types"
-import { loadStore } from "@/components/habit-tracker/use-habit-store"
+import { loadStore } from "./use-habit-store"
 import { loadFromStorage, saveToStorage } from "@/components/habit-tracker/common/storage"
 
 // --------------------------------------------------------------------------
@@ -56,17 +59,6 @@ const requestsCol = (uid: string) =>
 const requestRef = (uid: string, fromUid: string) =>
     doc(db, "users", uid, "friendRequests", fromUid)
 
-// --------------------------------------------------------------------------
-// Types
-// --------------------------------------------------------------------------
-
-export interface FriendRequest {
-    uid: string
-    displayName: string
-    email: string
-    photoURL: string
-    sentAt: number
-}
 
 // --------------------------------------------------------------------------
 // Hook
@@ -424,6 +416,76 @@ export function useFirebase(
     )
 
     // -----------------------------------------------------------------------
+    // Update display name
+    // -----------------------------------------------------------------------
+    const updateDisplayName = useCallback(
+        async (newName: string) => {
+            if (!user) return
+            const trimmed = newName.trim()
+            if (!trimmed) return
+            await updateProfile(user, { displayName: trimmed })
+            // Also update Firestore profile
+            await setDoc(
+                userRef(user.uid),
+                { profile: { displayName: trimmed } },
+                { merge: true }
+            )
+            // Force re-render by triggering auth state
+            setUser({ ...user, displayName: trimmed } as User)
+        },
+        [user]
+    )
+
+    // -----------------------------------------------------------------------
+    // Delete account — removes all Firestore data + Auth account
+    // -----------------------------------------------------------------------
+    const deleteAccount = useCallback(async () => {
+        if (!user) return
+
+        try {
+            const batch = writeBatch(db)
+
+            // 1. Remove self from all friends' friend lists
+            for (const friend of friends) {
+                batch.delete(friendRef(friend.uid, user.uid))
+            }
+
+            // 2. Delete own friends subcollection
+            const friendSnap = await getDocs(friendsCol(user.uid))
+            for (const d of friendSnap.docs) {
+                batch.delete(d.ref)
+            }
+
+            // 3. Delete own friend requests subcollection
+            const reqSnap = await getDocs(requestsCol(user.uid))
+            for (const d of reqSnap.docs) {
+                batch.delete(d.ref)
+            }
+
+            // 4. Delete invite code doc
+            if (inviteCode) {
+                batch.delete(codeRef(inviteCode))
+            }
+
+            // 5. Delete user doc
+            batch.delete(userRef(user.uid))
+
+            await batch.commit()
+
+            // 6. Clear localStorage
+            localStorage.clear()
+
+            // 7. Delete Firebase Auth account
+            await user.delete()
+        } catch (err) {
+            console.error("Failed to delete account:", err)
+            // If re-auth is needed, sign out at minimum
+            await firebaseSignOut(auth).catch(console.error)
+            throw err
+        }
+    }, [user, friends, inviteCode])
+
+    // -----------------------------------------------------------------------
     // Sign out
     // -----------------------------------------------------------------------
     const signOut = useCallback(async () => {
@@ -448,5 +510,7 @@ export function useFirebase(
         removeFriend,
         signOut,
         syncStoreToFirestore,
+        updateDisplayName,
+        deleteAccount,
     }
 }

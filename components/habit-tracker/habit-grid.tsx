@@ -3,6 +3,9 @@
 import { useState, useCallback } from "react"
 import { getDay } from "date-fns"
 import type { CellState, HiddenHabits } from "./common/types"
+import { CellButton } from "./common/cell-button"
+import { StreakBadge } from "./common/streak-badge"
+import { ChevronUpIcon, ChevronDownIcon, SmallCrossIcon, EyeIcon, EyeOffIcon } from "./common/icons"
 
 interface HabitGridProps {
   habits: string[]
@@ -15,6 +18,7 @@ interface HabitGridProps {
   onToggle: (habit: string, dayIdx: number) => void
   onAddHabit: (name: string) => void
   onRemoveHabit: (name: string) => void
+  onReorderHabit?: (name: string, direction: "up" | "down") => void
   /** Map of habitName → hidden (true = hidden from friends) */
   hiddenHabits?: HiddenHabits
   /** Called when eye icon is clicked to toggle a habit's visibility */
@@ -27,94 +31,6 @@ interface HabitGridProps {
 }
 
 const DAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function CellButton({
-  state,
-  onClick,
-  day,
-  habit,
-  disabled,
-}: {
-  state: CellState
-  onClick: () => void
-  day: number
-  habit: string
-  disabled: boolean
-}) {
-  const label =
-    state === "yes"
-      ? `${habit} day ${day}: Yes${disabled ? "" : ". Click to change to No."}`
-      : state === "no"
-        ? `${habit} day ${day}: No${disabled ? "" : ". Click to clear."}`
-        : `${habit} day ${day}: Blank${disabled ? "" : ". Click to mark Yes."}`
-
-  return (
-    <button
-      onClick={disabled ? undefined : onClick}
-      aria-label={label}
-      disabled={disabled}
-      className={`flex h-[30px] w-[30px] items-center justify-center rounded-lg text-xs font-medium transition-all duration-200 ${disabled ? "cursor-default" : "hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-        } ${state === "yes"
-          ? "bg-habit-yes text-habit-yes-text shadow-sm"
-          : state === "no"
-            ? "bg-habit-no text-habit-no-text shadow-sm"
-            : disabled
-              ? "bg-secondary/60 text-transparent"
-              : "bg-secondary text-transparent hover:bg-border"
-        }`}
-    >
-      {state === "yes" ? (
-        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-          <path d="M2.5 7.5L5.5 10.5L11.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ) : state === "no" ? (
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M2.5 2.5L9.5 9.5M9.5 2.5L2.5 9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
-      ) : null}
-    </button>
-  )
-}
-
-function StreakBadge({ count }: { count: number }) {
-  if (count === 0) return null
-  return (
-    <span className="flex items-center gap-0.5 rounded-full bg-peach px-1.5 py-0.5 text-[10px] font-semibold leading-none text-peach-foreground">
-      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path
-          d="M8 1C8 1 3 6 3 9.5C3 12.5 5.2 15 8 15C10.8 15 13 12.5 13 9.5C13 6 8 1 8 1Z"
-          fill="currentColor"
-          opacity="0.9"
-        />
-      </svg>
-      {count}
-    </span>
-  )
-}
-
-/** Eye icon – open (visible to friends) */
-function EyeIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  )
-}
-
-/** Eye-off icon – hidden from friends */
-function EyeOffIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M1 1l22 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -131,6 +47,7 @@ export function HabitGrid({
   onToggle,
   onAddHabit,
   onRemoveHabit,
+  onReorderHabit,
   hiddenHabits = {},
   onToggleHidden,
   friendView = false,
@@ -228,17 +145,28 @@ export function HabitGrid({
               <th className="sticky left-0 z-10 min-w-[160px] bg-card px-5 pt-1 pb-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Habit
               </th>
-              {days.map((day, i) => (
-                <th
-                  key={day}
-                  className={`px-0.5 pt-1 pb-3 text-center text-xs font-medium ${dayOfWeekLabels[i] === "Sat" || dayOfWeekLabels[i] === "Sun"
-                    ? "text-chart-2"
-                    : "text-muted-foreground"
-                    }`}
-                >
-                  {day}
-                </th>
-              ))}
+              {days.map((day, i) => {
+                const isToday =
+                  isCurrentMonth &&
+                  day === new Date().getDate()
+                return (
+                  <th
+                    key={day}
+                    className={`px-0.5 pt-1 pb-3 text-center text-xs font-medium ${dayOfWeekLabels[i] === "Sat" || dayOfWeekLabels[i] === "Sun"
+                      ? "text-chart-2"
+                      : "text-muted-foreground"
+                      }`}
+                  >
+                    {isToday ? (
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-chart-1 text-white font-semibold">
+                        {day}
+                      </span>
+                    ) : (
+                      day
+                    )}
+                  </th>
+                )
+              })}
               {!friendView && onToggleHidden && <th className="px-2 pt-1 pb-3" />}
             </tr>
           </thead>
@@ -258,6 +186,25 @@ export function HabitGrid({
                         <span className="truncate text-sm font-medium text-foreground">{habit}</span>
                         <StreakBadge count={isCurrentMonth ? (currentStreaks[habit] ?? 0) : (bestStreaks[habit] ?? 0)} />
                       </div>
+                      {/* Reorder buttons — only for owner in current month */}
+                      {isCurrentMonth && !friendView && onReorderHabit && hoveredHabit === habit && !confirmDelete && (
+                        <div className="flex flex-col gap-0">
+                          <button
+                            onClick={() => onReorderHabit(habit, "up")}
+                            className="flex h-3.5 w-5 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:text-foreground"
+                            aria-label={`Move ${habit} up`}
+                          >
+                            <ChevronUpIcon />
+                          </button>
+                          <button
+                            onClick={() => onReorderHabit(habit, "down")}
+                            className="flex h-3.5 w-5 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:text-foreground"
+                            aria-label={`Move ${habit} down`}
+                          >
+                            <ChevronDownIcon />
+                          </button>
+                        </div>
+                      )}
                       {/* Delete button — only for owner in current month */}
                       {isCurrentMonth && !friendView && hoveredHabit === habit && (
                         confirmDelete === habit ? (
@@ -283,9 +230,7 @@ export function HabitGrid({
                             className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-destructive hover:text-destructive-foreground"
                             aria-label={`Remove ${habit}`}
                           >
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                              <path d="M3 3L9 9M9 3L3 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                            </svg>
+                            <SmallCrossIcon size={12} />
                           </button>
                         )
                       )}

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react"
 import { getDaysInMonth, format, getDate } from "date-fns"
-import type { HabitStore, MonthData, CellState } from "./common/types"
+import type { HabitStore, MonthData, CellState } from "@/components/habit-tracker/common/types"
 
 export function getMonthKey(date: Date): string {
     return format(date, "yyyy-MM")

@@ -28,3 +28,12 @@ export interface FriendData {
   store: HabitStore
   hiddenHabits: HiddenHabits
 }
+
+/** An incoming friend request stored in Firestore */
+export interface FriendRequest {
+  uid: string
+  displayName: string
+  email: string
+  photoURL: string
+  sentAt: number
+}

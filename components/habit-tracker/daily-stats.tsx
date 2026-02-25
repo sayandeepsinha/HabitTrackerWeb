@@ -57,7 +57,7 @@ export function DailyStats({ grid, habits, daysInMonth, today, viewDate, isCurre
     ]
     : [{ name: "Empty", value: 1 }]
 
-  const COLORS = total > 0 ? ["#A7C7A2", "#F9A8B8"] : ["#F0EDE8"]
+  const COLORS = total > 0 ? ["var(--chart-1)", "var(--chart-2)"] : ["var(--secondary)"]
 
   return (
     <div className="flex h-full flex-col items-center rounded-3xl bg-card p-6 shadow-[0_2px_20px_rgba(0,0,0,0.04)]">
