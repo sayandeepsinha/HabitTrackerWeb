@@ -200,6 +200,32 @@ export function useHabitStore(defaultHabits?: string[]) {
     [isCurrentMonth, currentMonthKey, setStore]
   )
 
+  const renameHabit = useCallback(
+    (oldName: string, newName: string) => {
+      if (!isCurrentMonth) return
+      const trimmed = newName.trim()
+      if (!trimmed || trimmed === oldName) return
+      setStore((prev) => {
+        const key = currentMonthKey
+        const month = prev[key]
+        if (!month) return prev
+        // Don't allow renaming to an existing habit name
+        if (month.habits.includes(trimmed)) return prev
+        // Replace in habits array (preserve order)
+        const newHabits = month.habits.map((h) => (h === oldName ? trimmed : h))
+        // Move grid data from old key to new key
+        const newGrid = { ...month.grid }
+        newGrid[trimmed] = newGrid[oldName]
+        delete newGrid[oldName]
+        return {
+          ...prev,
+          [key]: { ...month, habits: newHabits, grid: newGrid },
+        }
+      })
+    },
+    [isCurrentMonth, currentMonthKey, setStore]
+  )
+
   const reorderHabit = useCallback(
     (name: string, direction: "up" | "down") => {
       if (!isCurrentMonth) return
@@ -243,6 +269,7 @@ export function useHabitStore(defaultHabits?: string[]) {
     updateCell,
     addHabit,
     removeHabit,
+    renameHabit,
     reorderHabit,
     goToPrevMonth,
     goToNextMonth,

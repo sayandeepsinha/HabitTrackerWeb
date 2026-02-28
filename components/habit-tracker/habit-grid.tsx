@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { getDay } from "date-fns"
 import type { CellState, HiddenHabits } from "./common/types"
 import { CellButton } from "./common/cell-button"
@@ -18,6 +18,7 @@ interface HabitGridProps {
   onToggle: (habit: string, dayIdx: number) => void
   onAddHabit: (name: string) => void
   onRemoveHabit: (name: string) => void
+  onRenameHabit?: (oldName: string, newName: string) => void
   onReorderHabit?: (name: string, direction: "up" | "down") => void
   /** Map of habitName → hidden (true = hidden from friends) */
   hiddenHabits?: HiddenHabits
@@ -47,6 +48,7 @@ export function HabitGrid({
   onToggle,
   onAddHabit,
   onRemoveHabit,
+  onRenameHabit,
   onReorderHabit,
   hiddenHabits = {},
   onToggleHidden,
@@ -55,6 +57,9 @@ export function HabitGrid({
   const [isAdding, setIsAdding] = useState(false)
   const [newHabitName, setNewHabitName] = useState("")
   const [hoveredHabit, setHoveredHabit] = useState<string | null>(null)
+  const [editingHabit, setEditingHabit] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const editInputRef = useRef<HTMLInputElement>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const handleAdd = useCallback(() => {
@@ -69,6 +74,41 @@ export function HabitGrid({
     if (e.key === "Enter") handleAdd()
     if (e.key === "Escape") { setIsAdding(false); setNewHabitName("") }
   }, [handleAdd])
+
+  // Start editing a habit name
+  const startEditing = useCallback((habit: string) => {
+    if (!isCurrentMonth || friendView || !onRenameHabit) return
+    setEditingHabit(habit)
+    setEditValue(habit)
+  }, [isCurrentMonth, friendView, onRenameHabit])
+
+  // Confirm the rename
+  const confirmRename = useCallback(() => {
+    if (editingHabit && editValue.trim() && onRenameHabit) {
+      onRenameHabit(editingHabit, editValue.trim())
+    }
+    setEditingHabit(null)
+    setEditValue("")
+  }, [editingHabit, editValue, onRenameHabit])
+
+  // Cancel editing
+  const cancelEditing = useCallback(() => {
+    setEditingHabit(null)
+    setEditValue("")
+  }, [])
+
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") confirmRename()
+    if (e.key === "Escape") cancelEditing()
+  }, [confirmRename, cancelEditing])
+
+  // Auto-focus edit input when editing starts
+  useEffect(() => {
+    if (editingHabit && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [editingHabit])
 
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
@@ -183,11 +223,43 @@ export function HabitGrid({
                   <td className="sticky left-0 z-10 bg-card px-5 py-2.5">
                     <div className="flex items-center gap-2">
                       <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="truncate text-sm font-medium text-foreground">{habit}</span>
+                        {editingHabit === habit ? (
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={handleEditKeyDown}
+                            onBlur={confirmRename}
+                            className="h-7 w-36 rounded-md border border-ring bg-background px-2 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                        ) : (
+                          <span
+                            className={`truncate text-sm font-medium text-foreground ${isCurrentMonth && !friendView && onRenameHabit ? "cursor-pointer hover:underline hover:decoration-muted-foreground/40 hover:underline-offset-2" : ""
+                              }`}
+                            onDoubleClick={() => startEditing(habit)}
+                            title={isCurrentMonth && !friendView && onRenameHabit ? "Double-click to rename" : undefined}
+                          >
+                            {habit}
+                          </span>
+                        )}
                         <StreakBadge count={isCurrentMonth ? (currentStreaks[habit] ?? 0) : (bestStreaks[habit] ?? 0)} />
                       </div>
+                      {/* Edit button — only for owner in current month */}
+                      {isCurrentMonth && !friendView && onRenameHabit && hoveredHabit === habit && editingHabit !== habit && !confirmDelete && (
+                        <button
+                          onClick={() => startEditing(habit)}
+                          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
+                          aria-label={`Rename ${habit}`}
+                          title="Rename habit"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M11.5 1.5L14.5 4.5L5 14H2V11L11.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+                      )}
                       {/* Reorder buttons — only for owner in current month */}
-                      {isCurrentMonth && !friendView && onReorderHabit && hoveredHabit === habit && !confirmDelete && (
+                      {isCurrentMonth && !friendView && onReorderHabit && hoveredHabit === habit && editingHabit !== habit && !confirmDelete && (
                         <div className="flex flex-col gap-0">
                           <button
                             onClick={() => onReorderHabit(habit, "up")}
@@ -206,7 +278,7 @@ export function HabitGrid({
                         </div>
                       )}
                       {/* Delete button — only for owner in current month */}
-                      {isCurrentMonth && !friendView && hoveredHabit === habit && (
+                      {isCurrentMonth && !friendView && hoveredHabit === habit && editingHabit !== habit && (
                         confirmDelete === habit ? (
                           <div className="flex items-center gap-1">
                             <button

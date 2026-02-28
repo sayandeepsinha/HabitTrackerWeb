@@ -36,6 +36,7 @@ export function HabitDashboard() {
     updateCell,
     addHabit,
     removeHabit,
+    renameHabit,
     reorderHabit,
     goToPrevMonth,
     goToNextMonth,
@@ -169,6 +170,7 @@ export function HabitDashboard() {
           onToggle={updateCell}
           onAddHabit={addHabit}
           onRemoveHabit={removeHabit}
+          onRenameHabit={renameHabit}
           onReorderHabit={reorderHabit}
           hiddenHabits={hiddenHabits}
           onToggleHidden={toggleHidden}
