@@ -107,12 +107,16 @@ export function useHabitStore(defaultHabits?: string[]) {
     []
   )
 
-  // Ensure current month exists
+  // Ensure current month exists — runs whenever the store changes
+  // (e.g. after Firestore pushes data that lacks the current month)
   useEffect(() => {
     if (!hydrated) return
-    setStore((prev) => ensureMonthExists(prev, today, defaultHabits))
+    const key = currentMonthKey
+    if (!store[key]) {
+      setStore((prev) => ensureMonthExists(prev, today, defaultHabits))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, today])
+  }, [hydrated, today, store])
 
   const {
     viewDate,
@@ -218,10 +222,12 @@ export function useHabitStore(defaultHabits?: string[]) {
     [isCurrentMonth, currentMonthKey, setStore]
   )
 
-  // Allow external code (e.g. Firestore sync) to push data into the store
+  // Allow external code (e.g. Firestore sync) to push data into the store.
+  // Always ensure the current month exists in the incoming data so that a
+  // Firestore snapshot from a previous month doesn't leave the grid empty.
   const setStoreDirectly = useCallback((newStore: HabitStore) => {
-    setStoreState(newStore)
-  }, [])
+    setStoreState(ensureMonthExists(newStore, today, defaultHabits))
+  }, [today, defaultHabits])
 
   return {
     store,
