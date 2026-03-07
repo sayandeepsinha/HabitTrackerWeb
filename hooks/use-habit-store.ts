@@ -100,12 +100,7 @@ export function useHabitStore(defaultHabits?: string[]) {
     saveStore(store)
   }, [store, hydrated])
 
-  const setStore = useCallback(
-    (updater: HabitStore | ((prev: HabitStore) => HabitStore)) => {
-      setStoreState(updater)
-    },
-    []
-  )
+
 
   // Ensure current month exists — runs whenever the store changes
   // (e.g. after Firestore pushes data that lacks the current month)
@@ -113,7 +108,7 @@ export function useHabitStore(defaultHabits?: string[]) {
     if (!hydrated) return
     const key = currentMonthKey
     if (!store[key]) {
-      setStore((prev) => ensureMonthExists(prev, today, defaultHabits))
+      setStoreState((prev) => ensureMonthExists(prev, today, defaultHabits))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, today, store])
@@ -134,7 +129,7 @@ export function useHabitStore(defaultHabits?: string[]) {
   const updateCell = useCallback(
     (habit: string, dayIdx: number) => {
       if (!isCurrentMonth) return
-      setStore((prev) => {
+      setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
         if (!month || !month.grid[habit]) return prev
@@ -146,7 +141,7 @@ export function useHabitStore(defaultHabits?: string[]) {
         }
       })
     },
-    [isCurrentMonth, currentMonthKey, setStore]
+    [isCurrentMonth, currentMonthKey]
   )
 
   const addHabit = useCallback(
@@ -154,7 +149,7 @@ export function useHabitStore(defaultHabits?: string[]) {
       if (!isCurrentMonth) return
       const trimmed = name.trim()
       if (!trimmed) return
-      setStore((prev) => {
+      setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
         if (!month) return prev
@@ -167,21 +162,18 @@ export function useHabitStore(defaultHabits?: string[]) {
           [key]: {
             ...month,
             habits: [...month.habits, trimmed],
-            grid: {
-              ...month.grid,
-              [trimmed]: Array(days).fill("blank") as CellState[],
-            },
+            grid: { ...month.grid, [trimmed]: Array(days).fill("blank") as CellState[] },
           },
         }
       })
     },
-    [isCurrentMonth, currentMonthKey, setStore]
+    [isCurrentMonth, currentMonthKey]
   )
 
   const removeHabit = useCallback(
     (name: string) => {
       if (!isCurrentMonth) return
-      setStore((prev) => {
+      setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
         if (!month) return prev
@@ -189,15 +181,11 @@ export function useHabitStore(defaultHabits?: string[]) {
         delete newGrid[name]
         return {
           ...prev,
-          [key]: {
-            ...month,
-            habits: month.habits.filter((h) => h !== name),
-            grid: newGrid,
-          },
+          [key]: { ...month, habits: month.habits.filter(h => h !== name), grid: newGrid },
         }
       })
     },
-    [isCurrentMonth, currentMonthKey, setStore]
+    [isCurrentMonth, currentMonthKey]
   )
 
   const renameHabit = useCallback(
@@ -205,31 +193,23 @@ export function useHabitStore(defaultHabits?: string[]) {
       if (!isCurrentMonth) return
       const trimmed = newName.trim()
       if (!trimmed || trimmed === oldName) return
-      setStore((prev) => {
+      setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
-        if (!month) return prev
-        // Don't allow renaming to an existing habit name
-        if (month.habits.includes(trimmed)) return prev
-        // Replace in habits array (preserve order)
-        const newHabits = month.habits.map((h) => (h === oldName ? trimmed : h))
-        // Move grid data from old key to new key
-        const newGrid = { ...month.grid }
-        newGrid[trimmed] = newGrid[oldName]
+        if (!month || month.habits.includes(trimmed)) return prev
+        const newHabits = month.habits.map(h => h === oldName ? trimmed : h)
+        const newGrid = { ...month.grid, [trimmed]: month.grid[oldName] }
         delete newGrid[oldName]
-        return {
-          ...prev,
-          [key]: { ...month, habits: newHabits, grid: newGrid },
-        }
+        return { ...prev, [key]: { ...month, habits: newHabits, grid: newGrid } }
       })
     },
-    [isCurrentMonth, currentMonthKey, setStore]
+    [isCurrentMonth, currentMonthKey]
   )
 
   const reorderHabit = useCallback(
     (name: string, direction: "up" | "down") => {
       if (!isCurrentMonth) return
-      setStore((prev) => {
+      setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
         if (!month) return prev
@@ -239,13 +219,10 @@ export function useHabitStore(defaultHabits?: string[]) {
         if (swapIdx < 0 || swapIdx >= month.habits.length) return prev
         const newHabits = [...month.habits]
           ;[newHabits[idx], newHabits[swapIdx]] = [newHabits[swapIdx], newHabits[idx]]
-        return {
-          ...prev,
-          [key]: { ...month, habits: newHabits },
-        }
+        return { ...prev, [key]: { ...month, habits: newHabits } }
       })
     },
-    [isCurrentMonth, currentMonthKey, setStore]
+    [isCurrentMonth, currentMonthKey]
   )
 
   // Allow external code (e.g. Firestore sync) to push data into the store.

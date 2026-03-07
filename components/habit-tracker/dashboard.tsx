@@ -1,18 +1,23 @@
 "use client"
 
 import React, { useEffect, useRef, useCallback } from "react"
+
 import { useFirebase } from "@/hooks/use-firebase"
 import { useSettings } from "@/hooks/use-settings"
 import { useHabitStore, getCalendarWeekData } from "@/hooks/use-habit-store"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useToast } from "@/hooks/use-toast"
 import type { HabitStore } from "./common/types"
 import { AuthScreen } from "./auth-screen"
 import { MotivationWidget } from "./motivation-widget"
 import { WeeklyProgress } from "./weekly-progress"
+import { DashboardSkeleton } from "./dashboard-skeleton"
 import { DailyStats } from "./daily-stats"
 import { HabitGrid } from "./habit-grid"
 import { FriendsSection } from "./friends-section"
 import { SettingsDialog } from "./settings"
 import { DashboardHeader } from "./dashboard-header"
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
@@ -20,6 +25,7 @@ import { DashboardHeader } from "./dashboard-header"
 export function HabitDashboard() {
   // Settings (theme, week start day, default habits)
   const { settings } = useSettings()
+  const isMobile = useIsMobile()
 
   // Habit store — always loads from localStorage instantly.
   // We get setStoreDirectly so Firebase can push Firestore data into React state.
@@ -83,6 +89,17 @@ export function HabitDashboard() {
   } = useFirebase(handleFirestoreUpdate)
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
+  const { toast } = useToast()
+
+  // Ensure current month exists locally
+  useEffect(() => {
+    if (hydrated) {
+      toast({
+        title: "Welcome back!",
+        description: "Your habits are synced and ready.",
+      })
+    }
+  }, [hydrated, toast])
 
   // Sync store → Firestore whenever the store changes.
   // CRITICAL: Wait for firestoreReady before writing — otherwise on a new
@@ -98,27 +115,14 @@ export function HabitDashboard() {
   // -----------------------------------------------------------------------
 
   // Wait for Firebase Auth to resolve
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-chart-1" />
-      </div>
-    )
-  }
+  if (authLoading) return <DashboardSkeleton />
 
   // No user — show login
   if (!user) {
     return <AuthScreen />
   }
 
-  // Wait for localStorage to hydrate (should be instant)
-  if (!hydrated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-chart-1" />
-      </div>
-    )
-  }
+  if (!hydrated) return <DashboardSkeleton />
 
   // -----------------------------------------------------------------------
   // Derived display data
@@ -138,25 +142,51 @@ export function HabitDashboard() {
         user={user}
         onOpenSettings={() => setIsSettingsOpen(true)}
         signOut={signOut}
+        isMobile={isMobile}
       />
 
       <main className="mx-auto max-w-[1440px]">
         {/* Top Widgets Row */}
-        <div
-          className="mb-6 grid gap-5"
-          style={{ gridTemplateColumns: "1fr 2fr 1fr" }}
-        >
-          <MotivationWidget />
-          <WeeklyProgress weekData={weekData} />
-          <DailyStats
-            grid={grid}
-            habits={habits}
-            daysInMonth={daysInViewMonth}
-            today={today}
-            viewDate={viewDate}
-            isCurrentMonth={isCurrentMonth}
-          />
-        </div>
+        {isMobile ? (
+          <div className="mb-6 px-1">
+            <Carousel className="w-full" opts={{ align: "start", loop: false }}>
+              <CarouselContent className="-ml-2">
+                <CarouselItem className="pl-2 basis-[90%] sm:basis-[80%]">
+                  <MotivationWidget />
+                </CarouselItem>
+                <CarouselItem className="pl-2 basis-[90%] sm:basis-[80%]">
+                  <WeeklyProgress weekData={weekData} />
+                </CarouselItem>
+                <CarouselItem className="pl-2 basis-[90%] sm:basis-[80%]">
+                  <DailyStats
+                    grid={grid}
+                    habits={habits}
+                    daysInMonth={daysInViewMonth}
+                    today={today}
+                    viewDate={viewDate}
+                    isCurrentMonth={isCurrentMonth}
+                  />
+                </CarouselItem>
+              </CarouselContent>
+            </Carousel>
+          </div>
+        ) : (
+          <div
+            className="mb-6 grid gap-5"
+            style={{ gridTemplateColumns: "1fr 2fr 1fr" }}
+          >
+            <MotivationWidget />
+            <WeeklyProgress weekData={weekData} />
+            <DailyStats
+              grid={grid}
+              habits={habits}
+              daysInMonth={daysInViewMonth}
+              today={today}
+              viewDate={viewDate}
+              isCurrentMonth={isCurrentMonth}
+            />
+          </div>
+        )}
 
         {/* Habit Grid */}
         <HabitGrid
@@ -174,6 +204,7 @@ export function HabitDashboard() {
           onReorderHabit={reorderHabit}
           hiddenHabits={hiddenHabits}
           onToggleHidden={toggleHidden}
+          today={today}
         />
 
         {/* Friends Section */}

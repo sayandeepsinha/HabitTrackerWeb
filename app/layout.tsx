@@ -3,8 +3,9 @@ import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
-import { MobileGuard } from '@/components/habit-tracker/mobile-guard'
 import { DevSwCleanup } from '@/components/habit-tracker/dev-sw-cleanup'
+import { Toaster } from "@/components/ui/toaster"
+import { Toaster as Sonner } from "@/components/ui/sonner"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -38,10 +39,10 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <DevSwCleanup />
-          <MobileGuard>
-            {children}
-          </MobileGuard>
+          {children}
           <Analytics />
+          <Toaster />
+          <Sonner />
         </ThemeProvider>
       </body>
     </html>
