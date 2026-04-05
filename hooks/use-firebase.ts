@@ -132,23 +132,27 @@ export function useFirebase(
 
         const unsub = onSnapshot(
             ref,
-            { includeMetadataChanges: true },
             (snap) => {
-                // If the snapshot says the document doesn't exist, but it's from the offline cache,
-                // we should WAIT for the server. Otherwise we'll mistakenly treat existing users 
-                // as brand-new users and overwrite their data with local dummy data!
+                // Guard: don't trust a "not found" from the offline cache.
+                // On a new domain the cache is empty, so Firestore may briefly
+                // report the doc missing before the server responds.
                 if (!snap.exists() && snap.metadata.fromCache) {
-                    return;
+                    return
                 }
 
                 if (snap.exists()) {
                     const data = snap.data()
 
-                    // ALWAYS push habits to the React state so the dashboard knows what Firestore actually has,
-                    // even if Firestore has NO habits (empty object). This prevents the dashboard from 
-                    // mistakenly syncing its local dummy data back up to Firestore thinking it's dirty.
-                    const cloudHabits = (data.habits as HabitStore) || {};
-                    storeCallbackRef.current?.(cloudHabits)
+                    // Only push cloud habits when they actually contain data.
+                    // If the cloud document exists but `habits` is empty/missing,
+                    // we do NOT overwrite what the user has locally — that would
+                    // wipe their data.
+                    if (
+                        data.habits &&
+                        Object.keys(data.habits as object).length > 0
+                    ) {
+                        storeCallbackRef.current?.(data.habits as HabitStore)
+                    }
 
                     // Pull hidden habits
                     if (data.hiddenHabits) {
@@ -159,7 +163,6 @@ export function useFirebase(
                     if (data.profile?.inviteCode) {
                         setInviteCode(data.profile.inviteCode as string)
                     } else if (!firestoreConnected.current) {
-                        // Generate invite code for existing user who doesn't have one
                         const code = generateCode()
                         setInviteCode(code)
                         setDoc(
@@ -179,11 +182,11 @@ export function useFirebase(
                     firestoreConnected.current = true
                     setFirestoreReady(true)
                 } else {
-                    // Brand-new user (confirmed by server) — create Firestore doc from current localStorage dummy data
+                    // Brand-new user (confirmed by server) — seed Firestore
+                    // from current localStorage so their first session is saved.
                     const code = generateCode()
                     setInviteCode(code)
 
-                    // Read current localStorage to seed the Firestore doc
                     const localStore = loadStore()
 
                     const profile = {
@@ -193,17 +196,12 @@ export function useFirebase(
                         inviteCode: code,
                     }
 
-                    // Also push this locally so `lastFirestoreStore` is updated, preventing sync loops
-                    storeCallbackRef.current?.(localStore)
-
                     setDoc(ref, {
                         habits: localStore,
                         hiddenHabits: {},
                         profile,
                     })
-                        .then(() => {
-                            return setDoc(codeRef(code), { uid: user.uid })
-                        })
+                        .then(() => setDoc(codeRef(code), { uid: user.uid }))
                         .catch((e) => console.error("[Firebase] ❌ user doc create FAILED:", e))
 
                     firestoreConnected.current = true
@@ -212,7 +210,6 @@ export function useFirebase(
             },
             (err) => {
                 console.error("Firestore user doc error:", err)
-                // App still works from localStorage — no blocking
             }
         )
 

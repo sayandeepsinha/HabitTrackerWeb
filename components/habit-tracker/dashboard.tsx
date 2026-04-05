@@ -1,13 +1,12 @@
 "use client"
 
-import React, { useEffect, useRef, useCallback } from "react"
+import React, { useEffect } from "react"
 
 import { useFirebase } from "@/hooks/use-firebase"
 import { useSettings } from "@/hooks/use-settings"
 import { useHabitStore, getCalendarWeekData } from "@/hooks/use-habit-store"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useToast } from "@/hooks/use-toast"
-import type { HabitStore } from "./common/types"
 import { AuthScreen } from "./auth-screen"
 import { MotivationWidget } from "./motivation-widget"
 import { WeeklyProgress } from "./weekly-progress"
@@ -48,24 +47,11 @@ export function HabitDashboard() {
     goToNextMonth,
     canGoNext,
     setStoreDirectly,
+    userChangePending,
   } = useHabitStore(settings.defaultHabits)
 
-  // Track Firestore-sourced updates to avoid infinite sync loops.
-  // When Firestore pushes data, we record the object reference. If the store
-  // matches that reference, it came from Firestore and we DON'T write back.
-  const lastFirestoreStore = useRef<HabitStore | null>(null)
-
-  // Wrap setStoreDirectly: track that the update came from Firestore
-  const handleFirestoreUpdate = useCallback(
-    (newStore: HabitStore) => {
-      lastFirestoreStore.current = newStore
-      setStoreDirectly(newStore)
-    },
-    [setStoreDirectly]
-  )
-
   // Firebase auth + social features.
-  // handleFirestoreUpdate lets onSnapshot push Firestore data → React state.
+  // setStoreDirectly lets onSnapshot push Firestore data → React state.
   const {
     user,
     authLoading,
@@ -87,7 +73,7 @@ export function HabitDashboard() {
     forceSyncStore,
     updateDisplayName,
     deleteAccount,
-  } = useFirebase(handleFirestoreUpdate)
+  } = useFirebase(setStoreDirectly)
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const [isSyncing, setIsSyncing] = React.useState(false)
@@ -123,14 +109,16 @@ export function HabitDashboard() {
     }
   }, [hydrated, toast])
 
-  // Sync store → Firestore whenever the store changes.
-  // CRITICAL: Wait for firestoreReady before writing — otherwise on a new
-  // domain, empty localStorage defaults would overwrite real Firestore data.
+  // Sync store → Firestore ONLY when the user made a deliberate change.
+  // The userChangePending flag is set by mutation functions (updateCell,
+  // addHabit, etc.) and is NOT set when Firestore pushes data via
+  // setStoreDirectly. This prevents cloud data from being overwritten.
   useEffect(() => {
     if (!hydrated || !firestoreReady) return
-    if (store === lastFirestoreStore.current) return
+    if (!userChangePending.current) return
+    userChangePending.current = false
     syncStoreToFirestore(store)
-  }, [store, hydrated, firestoreReady, syncStoreToFirestore])
+  }, [store, hydrated, firestoreReady, syncStoreToFirestore, userChangePending])
 
   // -----------------------------------------------------------------------
   // Loading + auth gating
