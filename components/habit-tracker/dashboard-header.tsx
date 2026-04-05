@@ -2,7 +2,7 @@
 
 import React from "react"
 import { Avatar } from "./common/avatar"
-import { CheckIcon, CrossIcon, ChevronDownIcon, SettingsIcon, SignOutIcon } from "./common/icons"
+import { CheckIcon, CrossIcon, ChevronDownIcon, SettingsIcon, SignOutIcon, RefreshCwIcon } from "./common/icons"
 import { MonthNav } from "./common/month-nav"
 import { ResponsiveDialog } from "./common/responsive-dialog"
 import { Button } from "@/components/ui/button"
@@ -25,13 +25,16 @@ interface DashboardHeaderProps {
     onOpenSettings: () => void
     signOut: () => void
     isMobile?: boolean
+    onSyncClick?: () => void
+    isSyncing?: boolean
 }
 
 export function DashboardHeader({
     viewDate, isCurrentMonth, canGoNext, goToPrevMonth, goToNextMonth,
-    user, onOpenSettings, signOut, isMobile
+    user, onOpenSettings, signOut, isMobile, onSyncClick, isSyncing
 }: DashboardHeaderProps) {
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false)
+    const [minSpin, setMinSpin] = React.useState(false)
 
     const handleSettings = () => {
         setIsUserMenuOpen(false)
@@ -42,6 +45,15 @@ export function DashboardHeader({
         setIsUserMenuOpen(false)
         signOut()
     }
+
+    const handleSyncClick = () => {
+        if (!isSyncing && onSyncClick) {
+            setMinSpin(true)
+            onSyncClick()
+            setTimeout(() => setMinSpin(false), 1000)
+        }
+    }
+
     return (
         <header className="mx-auto mb-8 max-w-[1440px]">
             <div className={`flex ${isMobile ? "flex-col items-center gap-4" : "items-end justify-between"}`}>
@@ -61,8 +73,15 @@ export function DashboardHeader({
                     )}
                 </div>
 
-                {/* Legend + User */}
+                {/* Legend + Sync + User */}
                 <div className="flex items-center gap-4">
+                    {onSyncClick && (
+                        <div role="button" tabIndex={0} onClick={handleSyncClick} className={`flex cursor-pointer items-center justify-center rounded-xl bg-card transition-colors hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-[0_1px_8px_rgba(0,0,0,0.04)] ${isMobile ? "h-8 w-8" : "px-3 py-1.5 h-[36px]"}`}>
+                            <RefreshCwIcon size={isMobile ? 14 : 14} className={(isSyncing || minSpin) ? 'animate-spin' : ''} style={(isSyncing || minSpin) ? { animationDirection: 'reverse' } : {}} />
+                            {!isMobile && <span className="ml-2 text-xs font-medium text-foreground">Sync</span>}
+                        </div>
+                    )}
+
                     {!isMobile && (
                         <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5">

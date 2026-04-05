@@ -127,7 +127,7 @@ export function HabitGrid({
             <thead>
               {/* Day-of-week row */}
               <tr>
-                <th className="sticky top-0 left-0 z-40 min-w-[160px] border-b border-border/50 bg-card px-5 pt-4 pb-0 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">&nbsp;</th>
+                <th className="sticky top-0 left-0 z-40 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 pt-4 pb-0 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">&nbsp;</th>
                 {dayOfWeekLabels.map((dow, i) => (
                   <th key={`dow-${i}`} className={`sticky top-0 z-20 border-b border-border/50 bg-card px-0.5 pt-4 pb-0 text-center text-[10px] font-medium tracking-wide ${dow === "Sat" || dow === "Sun" ? "text-chart-2" : "text-muted-foreground/60"}`}>{dow}</th>
                 ))}
@@ -136,7 +136,7 @@ export function HabitGrid({
 
               {/* Day-number row + HABIT header with manage buttons */}
               <tr>
-                <th className="sticky top-[30px] left-0 z-40 min-w-[160px] border-b border-border/50 bg-card px-5 pt-1 pb-3 text-left">
+                <th className="sticky top-[30px] left-0 z-40 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 pt-1 pb-3 text-left">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">Habit</span>
                     {canManage && (
@@ -182,26 +182,30 @@ export function HabitGrid({
                 const isHidden = !!hiddenHabits[habit]
                 return (
                   <tr key={habit} className={`transition-colors hover:bg-secondary/20 ${isHidden && !friendView ? "opacity-60" : ""}`}>
-                    <td className="sticky left-0 z-30 border-b border-border/50 bg-card px-5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <td className="sticky left-0 z-30 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 py-2.5">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="flex w-full items-center justify-between gap-1 overflow-hidden">
                           {activeMode === "edit" && editingHabit === habit ? (
                             <input ref={editInputRef} type="text" value={editValue}
                               onChange={e => setEditValue(e.target.value)}
                               onKeyDown={e => { if (e.key === "Enter") confirmRename(habit); if (e.key === "Escape") { setEditingHabit(null); setEditValue("") } }}
                               onBlur={() => confirmRename(habit)}
-                              className="h-7 w-36 rounded-md border border-ring bg-background px-2 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                              className="h-7 w-full min-w-0 rounded-md border border-ring bg-background px-2 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                             />
                           ) : (
                             <span
-                              className={`truncate text-xs font-medium text-foreground sm:text-sm ${activeMode === "edit" ? "cursor-pointer rounded px-1 -mx-1 hover:bg-accent/60 transition-colors" : ""}`}
+                              className={`line-clamp-2 min-w-0 flex-1 text-xs font-medium text-foreground sm:text-[13px] break-words leading-tight ${activeMode === "edit" ? "cursor-pointer rounded px-1 -mx-1 hover:bg-accent/60 transition-colors" : ""}`}
                               onClick={() => { if (activeMode === "edit") { setEditingHabit(habit); setEditValue(habit) } }}
                               title={activeMode === "edit" ? "Click to rename" : undefined}
                             >
                               {habit}
                             </span>
                           )}
-                          <StreakBadge count={isCurrentMonth ? (currentStreaks[habit] ?? 0) : (bestStreaks[habit] ?? 0)} />
+                          {!activeMode && (
+                            <div className="flex w-[38px] sm:w-[44px] flex-shrink-0 justify-end">
+                              <StreakBadge count={isCurrentMonth ? (currentStreaks[habit] ?? 0) : (bestStreaks[habit] ?? 0)} />
+                            </div>
+                          )}
                         </div>
 
                         {/* Reorder controls */}
@@ -263,16 +267,18 @@ export function HabitGrid({
               {/* Add habit row */}
               {isCurrentMonth && !friendView && (
                 <tr className="transition-colors hover:bg-secondary/20">
-                  <td className="sticky left-0 z-30 border-b border-border/50 bg-card px-5 py-3">
+                  <td className="sticky left-0 z-30 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 py-3">
                     {isAdding ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-2">
                         <input type="text" value={newHabitName} onChange={e => setNewHabitName(e.target.value)}
                           onKeyDown={e => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") { setIsAdding(false); setNewHabitName("") } }}
-                          placeholder="Enter habit name..." autoFocus
-                          className="h-8 w-48 rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
+                          placeholder="Enter habit..." autoFocus
+                          className="h-8 w-full min-w-0 rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
                         />
-                        <button onClick={handleAdd} disabled={!newHabitName.trim()} className="h-8 rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground transition-colors hover:bg-chart-1/30 disabled:opacity-40">Add</button>
-                        <button onClick={() => { setIsAdding(false); setNewHabitName("") }} className="h-8 rounded-lg bg-secondary px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-border">Cancel</button>
+                        <div className="flex gap-2">
+                            <button onClick={handleAdd} disabled={!newHabitName.trim()} className="h-8 flex-1 rounded-lg bg-accent px-3 text-xs font-semibold text-accent-foreground transition-colors hover:bg-chart-1/30 disabled:opacity-40">Add</button>
+                            <button onClick={() => { setIsAdding(false); setNewHabitName("") }} className="h-8 flex-1 rounded-lg bg-secondary px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-border">Cancel</button>
+                        </div>
                       </div>
                     ) : (
                       <button onClick={() => setIsAdding(true)} className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">

@@ -84,12 +84,34 @@ export function HabitDashboard() {
     removeFriend,
     signOut,
     syncStoreToFirestore,
+    forceSyncStore,
     updateDisplayName,
     deleteAccount,
   } = useFirebase(handleFirestoreUpdate)
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
+  const [isSyncing, setIsSyncing] = React.useState(false)
   const { toast } = useToast()
+
+  const handleSync = async () => {
+    if (!hydrated || !firestoreReady) return
+    setIsSyncing(true)
+    try {
+      await forceSyncStore(store)
+      toast({
+        title: "Synced",
+        description: "Your habits have been successfully synced.",
+      })
+    } catch (e) {
+      toast({
+        title: "Sync Failed",
+        description: "Could not sync with the cloud. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   // Ensure current month exists locally
   useEffect(() => {
@@ -143,6 +165,8 @@ export function HabitDashboard() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         signOut={signOut}
         isMobile={isMobile}
+        onSyncClick={handleSync}
+        isSyncing={isSyncing}
       />
 
       <main className="mx-auto max-w-[1440px]">

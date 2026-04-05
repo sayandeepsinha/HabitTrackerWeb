@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore"
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore"
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -15,17 +15,27 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
 
-// Enable offline persistence
+// Enable offline persistence securely
+let firestoreDb;
 if (typeof window !== "undefined") {
-    enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code === 'failed-precondition') {
-            // Multiple tabs open, persistence can only be enabled in one tab at a time.
-            console.warn("Persistence failed: Multiple tabs open");
-        } else if (err.code === 'unimplemented') {
-            // The current browser doesn't support all of the features required to enable persistence
-            console.warn("Persistence failed: Browser not supported");
+    // In the browser, try to initialize with modern local caching
+    try {
+        firestoreDb = initializeFirestore(app, {
+            localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+        });
+    } catch (e: any) {
+        // If hot-reloaded, it might throw because Firestore is already started. Just get the existing instance.
+        if (e.code === 'failed-precondition' || e.message?.includes('already been started')) {
+            firestoreDb = getFirestore(app);
+        } else {
+            console.error("Firestore initialization failed:", e);
+            firestoreDb = getFirestore(app);
         }
-    });
+    }
+} else {
+    // Server-side rendering (SSR), we just get a normal Firestore instance without caching
+    firestoreDb = getFirestore(app);
 }
+
+export const db = firestoreDb;

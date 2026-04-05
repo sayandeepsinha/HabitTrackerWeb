@@ -132,17 +132,23 @@ export function useFirebase(
 
         const unsub = onSnapshot(
             ref,
+            { includeMetadataChanges: true },
             (snap) => {
+                // If the snapshot says the document doesn't exist, but it's from the offline cache,
+                // we should WAIT for the server. Otherwise we'll mistakenly treat existing users 
+                // as brand-new users and overwrite their data with local dummy data!
+                if (!snap.exists() && snap.metadata.fromCache) {
+                    return;
+                }
+
                 if (snap.exists()) {
                     const data = snap.data()
 
-                    // Push habits directly into React state
-                    if (
-                        data.habits &&
-                        Object.keys(data.habits as object).length > 0
-                    ) {
-                        storeCallbackRef.current?.(data.habits as HabitStore)
-                    }
+                    // ALWAYS push habits to the React state so the dashboard knows what Firestore actually has,
+                    // even if Firestore has NO habits (empty object). This prevents the dashboard from 
+                    // mistakenly syncing its local dummy data back up to Firestore thinking it's dirty.
+                    const cloudHabits = (data.habits as HabitStore) || {};
+                    storeCallbackRef.current?.(cloudHabits)
 
                     // Pull hidden habits
                     if (data.hiddenHabits) {
@@ -173,7 +179,7 @@ export function useFirebase(
                     firestoreConnected.current = true
                     setFirestoreReady(true)
                 } else {
-                    // Brand-new user — create Firestore doc from current localStorage
+                    // Brand-new user (confirmed by server) — create Firestore doc from current localStorage dummy data
                     const code = generateCode()
                     setInviteCode(code)
 
@@ -186,6 +192,9 @@ export function useFirebase(
                         photoURL: user.photoURL ?? "",
                         inviteCode: code,
                     }
+
+                    // Also push this locally so `lastFirestoreStore` is updated, preventing sync loops
+                    storeCallbackRef.current?.(localStore)
 
                     setDoc(ref, {
                         habits: localStore,
@@ -224,6 +233,18 @@ export function useFirebase(
         },
         [user]
     )
+
+    // -----------------------------------------------------------------------
+    // Force manual sync to Firestore
+    // -----------------------------------------------------------------------
+    const forceSyncStore = useCallback(
+        async (newStore: HabitStore) => {
+            if (!user) throw new Error("Not logged in")
+            await setDoc(userRef(user.uid), { habits: newStore }, { merge: true })
+        },
+        [user]
+    )
+
 
     // -----------------------------------------------------------------------
     // Toggle hidden habit
@@ -510,6 +531,7 @@ export function useFirebase(
         removeFriend,
         signOut,
         syncStoreToFirestore,
+        forceSyncStore,
         updateDisplayName,
         deleteAccount,
     }
