@@ -84,9 +84,9 @@ export function useHabitStore(defaultHabits?: string[]) {
   const [store, setStoreState] = useState<HabitStore>({})
   const [hydrated, setHydrated] = useState(false)
 
-  // Flag: true ONLY when a user-initiated mutation changed the store.
-  // This prevents Firestore-pushed data from being echoed back to Firestore.
-  const userChangePending = useRef(false)
+  // Flag: stores the string month key ONLY when a user-initiated mutation changed the store.
+  // This selectively pushes only the precisely modified month back to Firestore.
+  const userChangePending = useRef<string | null>(null)
 
   const today = useMemo(() => new Date(), [])
   const currentMonthKey = useMemo(() => getMonthKey(today), [today])
@@ -132,10 +132,12 @@ export function useHabitStore(defaultHabits?: string[]) {
 
   const updateCell = useCallback(
     (habit: string, dayIdx: number) => {
-      if (!isCurrentMonth) return
-      userChangePending.current = true
+      // Allow modifying current and past months, but don't edit strictly future months.
+      if (viewDate > today && !isCurrentMonth) return
+      
+      const key = viewMonthKey
+      userChangePending.current = key
       setStoreState((prev) => {
-        const key = currentMonthKey
         const month = prev[key]
         if (!month || !month.grid[habit]) return prev
         const newCells = [...month.grid[habit]]
@@ -146,7 +148,7 @@ export function useHabitStore(defaultHabits?: string[]) {
         }
       })
     },
-    [isCurrentMonth, currentMonthKey]
+    [viewMonthKey, viewDate, today, isCurrentMonth]
   )
 
   const addHabit = useCallback(
@@ -154,7 +156,7 @@ export function useHabitStore(defaultHabits?: string[]) {
       if (!isCurrentMonth) return
       const trimmed = name.trim()
       if (!trimmed) return
-      userChangePending.current = true
+      userChangePending.current = currentMonthKey
       setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
@@ -179,7 +181,7 @@ export function useHabitStore(defaultHabits?: string[]) {
   const removeHabit = useCallback(
     (name: string) => {
       if (!isCurrentMonth) return
-      userChangePending.current = true
+      userChangePending.current = currentMonthKey
       setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
@@ -200,7 +202,7 @@ export function useHabitStore(defaultHabits?: string[]) {
       if (!isCurrentMonth) return
       const trimmed = newName.trim()
       if (!trimmed || trimmed === oldName) return
-      userChangePending.current = true
+      userChangePending.current = currentMonthKey
       setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]
@@ -217,7 +219,7 @@ export function useHabitStore(defaultHabits?: string[]) {
   const reorderHabit = useCallback(
     (name: string, direction: "up" | "down") => {
       if (!isCurrentMonth) return
-      userChangePending.current = true
+      userChangePending.current = currentMonthKey
       setStoreState((prev) => {
         const key = currentMonthKey
         const month = prev[key]

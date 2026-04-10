@@ -27,11 +27,14 @@ interface DashboardHeaderProps {
     isMobile?: boolean
     onSyncClick?: () => void
     isSyncing?: boolean
+    isPastUnlocked?: boolean
+    onUnlockClick?: () => void
 }
 
 export function DashboardHeader({
     viewDate, isCurrentMonth, canGoNext, goToPrevMonth, goToNextMonth,
-    user, onOpenSettings, signOut, isMobile, onSyncClick, isSyncing
+    user, onOpenSettings, signOut, isMobile, onSyncClick, isSyncing,
+    isPastUnlocked, onUnlockClick
 }: DashboardHeaderProps) {
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false)
     const [minSpin, setMinSpin] = React.useState(false)
@@ -67,9 +70,17 @@ export function DashboardHeader({
                 <div className="flex items-center gap-3">
                     <MonthNav viewDate={viewDate} canGoNext={canGoNext} onPrev={goToPrevMonth} onNext={goToNextMonth} size={isMobile ? "sm" : "md"} />
                     {!isCurrentMonth && (
-                        <span className="ml-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                            View only
-                        </span>
+                        <button
+                            onClick={onUnlockClick}
+                            disabled={isPastUnlocked}
+                            className={`ml-1 inline-block -mt-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                isPastUnlocked
+                                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 cursor-pointer"
+                            }`}
+                        >
+                            {isPastUnlocked ? "Editing Past" : "View only"}
+                        </button>
                     )}
                 </div>
 

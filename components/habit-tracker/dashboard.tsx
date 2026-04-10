@@ -2,21 +2,22 @@
 
 import React, { useEffect } from "react"
 
-import { useFirebase } from "@/hooks/use-firebase"
+import { useFirebaseAuth } from "@/hooks/use-firebase-auth"
+import { useFirebaseSync } from "@/hooks/use-firebase-sync"
+import { useFirebaseSocial } from "@/hooks/use-firebase-social"
 import { useSettings } from "@/hooks/use-settings"
 import { useHabitStore, getCalendarWeekData } from "@/hooks/use-habit-store"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useToast } from "@/hooks/use-toast"
 import { AuthScreen } from "./auth-screen"
-import { MotivationWidget } from "./motivation-widget"
-import { WeeklyProgress } from "./weekly-progress"
 import { DashboardSkeleton } from "./dashboard-skeleton"
-import { DailyStats } from "./daily-stats"
+import { DashboardWidgets } from "./dashboard-widgets"
 import { HabitGrid } from "./habit-grid"
 import { FriendsSection } from "./friends-section"
 import { SettingsDialog } from "./settings"
 import { DashboardHeader } from "./dashboard-header"
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
+import { ResponsiveDialog } from "./common/responsive-dialog"
+import { Button } from "@/components/ui/button"
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
@@ -50,33 +51,19 @@ export function HabitDashboard() {
     userChangePending,
   } = useHabitStore(settings.defaultHabits)
 
-  // Firebase auth + social features.
-  // setStoreDirectly lets onSnapshot push Firestore data → React state.
+  // Firebase Modules
+  const { user, authLoading, updateDisplayName, deleteAccount, signOut } = useFirebaseAuth()
   const {
-    user,
-    authLoading,
-    firestoreReady,
-    inviteCode,
-    hiddenHabits,
-    toggleHidden,
-    friends,
-    friendStores,
-    friendRequests,
-    sendFriendRequest,
-    acceptRequest,
-    declineRequest,
-    addFriendError,
-    addFriendLoading,
-    removeFriend,
-    signOut,
-    syncStoreToFirestore,
-    forceSyncStore,
-    updateDisplayName,
-    deleteAccount,
-  } = useFirebase(setStoreDirectly)
+      firestoreReady, inviteCode, hiddenHabits, toggleHidden, syncStoreToFirestore, forceSyncStore
+  } = useFirebaseSync(user, setStoreDirectly)
+  const {
+      friends, friendStores, friendRequests, sendFriendRequest, acceptRequest, declineRequest, addFriendError, addFriendLoading, removeFriend
+  } = useFirebaseSocial(user, inviteCode)
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const [isSyncing, setIsSyncing] = React.useState(false)
+  const [isPastUnlocked, setIsPastUnlocked] = React.useState(false)
+  const [showUnlockPrompt, setShowUnlockPrompt] = React.useState(false)
   const { toast } = useToast()
 
   const handleSync = async () => {
@@ -116,9 +103,15 @@ export function HabitDashboard() {
   useEffect(() => {
     if (!hydrated || !firestoreReady) return
     if (!userChangePending.current) return
-    userChangePending.current = false
-    syncStoreToFirestore(store)
+    const changedMonthKey = userChangePending.current
+    userChangePending.current = null
+    syncStoreToFirestore(store, changedMonthKey)
   }, [store, hydrated, firestoreReady, syncStoreToFirestore, userChangePending])
+
+  // Lock past editing state when changing months.
+  useEffect(() => {
+    setIsPastUnlocked(false)
+  }, [viewDate])
 
   // -----------------------------------------------------------------------
   // Loading + auth gating
@@ -155,50 +148,22 @@ export function HabitDashboard() {
         isMobile={isMobile}
         onSyncClick={handleSync}
         isSyncing={isSyncing}
+        isPastUnlocked={isPastUnlocked}
+        onUnlockClick={() => setShowUnlockPrompt(true)}
       />
 
       <main className="mx-auto max-w-[1440px]">
         {/* Top Widgets Row */}
-        {isMobile ? (
-          <div className="mb-6 px-1">
-            <Carousel className="w-full" opts={{ align: "start", loop: false }}>
-              <CarouselContent className="-ml-2">
-                <CarouselItem className="pl-2 basis-[90%] sm:basis-[80%]">
-                  <MotivationWidget />
-                </CarouselItem>
-                <CarouselItem className="pl-2 basis-[90%] sm:basis-[80%]">
-                  <WeeklyProgress weekData={weekData} />
-                </CarouselItem>
-                <CarouselItem className="pl-2 basis-[90%] sm:basis-[80%]">
-                  <DailyStats
-                    grid={grid}
-                    habits={habits}
-                    daysInMonth={daysInViewMonth}
-                    today={today}
-                    viewDate={viewDate}
-                    isCurrentMonth={isCurrentMonth}
-                  />
-                </CarouselItem>
-              </CarouselContent>
-            </Carousel>
-          </div>
-        ) : (
-          <div
-            className="mb-6 grid gap-5"
-            style={{ gridTemplateColumns: "1fr 2fr 1fr" }}
-          >
-            <MotivationWidget />
-            <WeeklyProgress weekData={weekData} />
-            <DailyStats
-              grid={grid}
-              habits={habits}
-              daysInMonth={daysInViewMonth}
-              today={today}
-              viewDate={viewDate}
-              isCurrentMonth={isCurrentMonth}
-            />
-          </div>
-        )}
+        <DashboardWidgets
+            isMobile={isMobile}
+            weekData={weekData}
+            grid={grid}
+            habits={habits}
+            daysInViewMonth={daysInViewMonth}
+            today={today}
+            viewDate={viewDate}
+            isCurrentMonth={isCurrentMonth}
+        />
 
         {/* Habit Grid */}
         <HabitGrid
@@ -217,6 +182,8 @@ export function HabitDashboard() {
           hiddenHabits={hiddenHabits}
           onToggleHidden={toggleHidden}
           today={today}
+          isPastUnlocked={isPastUnlocked}
+          onUnlockClick={() => setShowUnlockPrompt(true)}
         />
 
         {/* Friends Section */}
@@ -242,6 +209,28 @@ export function HabitDashboard() {
           updateDisplayName={updateDisplayName}
           deleteAccount={deleteAccount}
         />
+
+        {/* Unlock Past Edits Prompt */}
+        <ResponsiveDialog
+          open={showUnlockPrompt}
+          onOpenChange={setShowUnlockPrompt}
+          title="Unlock Historical Editing"
+          description="Are you sure you want to edit past data? Modifying historical records will permanently alter your streaks and statistical overview."
+          footer={
+            <div className="flex gap-2 w-full justify-end">
+              <Button variant="outline" onClick={() => setShowUnlockPrompt(false)}>
+                Cancel
+              </Button>
+              <Button variant="default" onClick={() => { setIsPastUnlocked(true); setShowUnlockPrompt(false) }}>
+                Unlock Editor
+              </Button>
+            </div>
+          }
+        >
+          <div className="text-sm text-muted-foreground/80 my-2">
+            Once unlocked, you can toggle cells in this past month freely. Your progress will automatically re-lock when you navigate to another month.
+          </div>
+        </ResponsiveDialog>
       </main>
     </div>
   )

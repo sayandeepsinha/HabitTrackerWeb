@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { ChevronUpIcon, ChevronDownIcon, SmallCrossIcon, EyeIcon, EyeOffIcon, PencilIcon, TrashIcon, ArrowsUpDownIcon, InfoIcon, PeopleIcon } from "./common/icons"
+import { GridBanners } from "./grid-banners"
+import { GridHeader } from "./grid-header"
 
 type ManageMode = "edit" | "reorder" | "delete" | null
 
@@ -29,6 +31,8 @@ interface HabitGridProps {
   onToggleHidden?: (habit: string) => void
   friendView?: boolean
   today: Date
+  isPastUnlocked?: boolean
+  onUnlockClick?: () => void
 }
 
 const DAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
@@ -37,6 +41,7 @@ export function HabitGrid({
   habits, grid, daysInMonth, viewDate, isCurrentMonth, currentStreaks, bestStreaks,
   onToggle, onAddHabit, onRemoveHabit, onRenameHabit, onReorderHabit,
   hiddenHabits = {}, onToggleHidden, friendView = false, today,
+  isPastUnlocked, onUnlockClick
 }: HabitGridProps) {
   const { toast } = useToast()
   const [isAdding, setIsAdding] = useState(false)
@@ -95,88 +100,34 @@ export function HabitGrid({
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
   const visibleHabits = friendView ? habits.filter(h => !hiddenHabits[h]) : habits
   const dayOfWeekLabels = days.map(day => DAY_ABBREVS[getDay(new Date(viewDate.getFullYear(), viewDate.getMonth(), day))])
-  const cellsReadOnly = !isCurrentMonth || friendView
   const canManage = isCurrentMonth && !friendView
+  const cellsReadOnly = friendView
   const hasEyeCol = !friendView && !!onToggleHidden
-
-  const hBtn = (active: boolean, danger = false) =>
-    `flex h-6 w-6 items-center justify-center rounded-md transition-all ${active
-      ? danger ? "bg-destructive/15 text-destructive" : "bg-accent text-foreground shadow-sm"
-      : "text-muted-foreground/50 hover:bg-accent/60 hover:text-foreground"}`
-
   const isMobile = useIsMobile()
 
   return (
     <TooltipProvider delayDuration={300}>
       <div className="overflow-hidden rounded-3xl bg-card shadow-[0_2px_20px_rgba(0,0,0,0.04)]">
-        {/* Past month info banner */}
-        {!isCurrentMonth && (
-          <div className="flex items-center gap-2 border-b border-border/50 bg-secondary/50 px-5 py-2.5">
-            <InfoIcon className="text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Viewing past month (read-only)</span>
-          </div>
-        )}
-        {friendView && (
-          <div className="flex items-center gap-2 border-b border-border/50 bg-accent/40 px-5 py-2.5">
-            <PeopleIcon size={14} className="text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground">Friend&apos;s habits (view-only — hidden habits not shown)</span>
-          </div>
-        )}
+        <GridBanners
+            isCurrentMonth={isCurrentMonth}
+            isPastUnlocked={isPastUnlocked}
+            onUnlockClick={onUnlockClick}
+            friendView={friendView}
+        />
         <div className="overflow-auto max-h-[70vh]">
           <table className="min-w-full w-max border-separate border-spacing-0" role="grid" aria-label={`Habit tracking grid for ${daysInMonth} days`}>
-            <thead>
-              {/* Day-of-week row */}
-              <tr>
-                <th className="sticky top-0 left-0 z-40 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 pt-4 pb-0 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">&nbsp;</th>
-                {dayOfWeekLabels.map((dow, i) => (
-                  <th key={`dow-${i}`} className={`sticky top-0 z-20 border-b border-border/50 bg-card px-0.5 pt-4 pb-0 text-center text-[10px] font-medium tracking-wide ${dow === "Sat" || dow === "Sun" ? "text-chart-2" : "text-muted-foreground/60"}`}>{dow}</th>
-                ))}
-                {hasEyeCol && <th className="sticky top-0 z-20 border-b border-border/50 bg-card px-2 pt-4 pb-0 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Vis.</th>}
-              </tr>
-
-              {/* Day-number row + HABIT header with manage buttons */}
-              <tr>
-                <th className="sticky top-[30px] left-0 z-40 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 pt-1 pb-3 text-left">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:text-xs">Habit</span>
-                    {canManage && (
-                      <div className="flex items-center gap-0.5">
-                        {onRenameHabit && (
-                          <button onClick={() => toggleMode("edit")} className={hBtn(activeMode === "edit")} title="Edit habit names" aria-pressed={activeMode === "edit"} aria-label="Edit habit names">
-                            <PencilIcon size={11} />
-                          </button>
-                        )}
-                        {onReorderHabit && (
-                          <button onClick={() => toggleMode("reorder")} className={hBtn(activeMode === "reorder")} title="Reorder habits" aria-pressed={activeMode === "reorder"} aria-label="Reorder habits">
-                            <ArrowsUpDownIcon size={12} />
-                          </button>
-                        )}
-                        <button onClick={() => toggleMode("delete")} className={hBtn(activeMode === "delete", true)} title="Delete habits" aria-pressed={activeMode === "delete"} aria-label="Delete habits">
-                          <TrashIcon size={11} />
-                        </button>
-                        {activeMode && (
-                          <button onClick={() => toggleMode(null)} className="ml-0.5 flex h-5 items-center gap-0.5 rounded-full bg-secondary px-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-border" title="Exit (Esc)" aria-label="Exit management mode">
-                            <SmallCrossIcon size={7} /><span className="capitalize">{activeMode}</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </th>
-                {days.map((day, i) => {
-                  const isToday = isCurrentMonth && day === (today?.getDate() ?? new Date().getDate())
-                  return (
-                    <th key={day} className={`sticky top-[30px] z-20 border-b border-border/50 bg-card px-0.5 pt-1 pb-3 text-center text-xs font-medium ${dayOfWeekLabels[i] === "Sat" || dayOfWeekLabels[i] === "Sun" ? "text-chart-2" : "text-muted-foreground"}`}>
-                      {isToday
-                        ? <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-chart-1 text-white font-semibold">{day}</span>
-                        : day}
-                    </th>
-                  )
-                })}
-                {hasEyeCol && <th className="sticky top-[30px] z-20 border-b border-border/50 bg-card px-2 pt-1 pb-3" />}
-              </tr>
-            </thead>
-
+            <GridHeader
+                days={days}
+                dayOfWeekLabels={dayOfWeekLabels}
+                hasEyeCol={hasEyeCol}
+                canManage={canManage}
+                isCurrentMonth={isCurrentMonth}
+                today={today}
+                activeMode={activeMode}
+                toggleMode={toggleMode}
+                onRenameHabit={onRenameHabit}
+                onReorderHabit={onReorderHabit}
+            />
             <tbody>
               {visibleHabits.map(habit => {
                 const isHidden = !!hiddenHabits[habit]
@@ -232,25 +183,35 @@ export function HabitGrid({
                       </div>
                     </td>
 
-                    {days.map((day, dayIdx) => (
-                      <td key={dayIdx} className="px-0.5 py-2.5 text-center">
-                        {!isMobile ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="inline-block">
-                                <CellButton state={grid[habit]?.[dayIdx] ?? "blank"} onClick={() => onToggle(habit, dayIdx)} day={day} habit={habit} disabled={cellsReadOnly} />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p className="font-medium">{grid[habit]?.[dayIdx] === "yes" ? "Completed" : grid[habit]?.[dayIdx] === "no" ? "Missed" : "Not recorded"}</p>
-                              <p className="text-[10px] opacity-70">{isCurrentMonth && day === (today?.getDate() ?? new Date().getDate()) ? "Today" : `Day ${day}`}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <CellButton state={grid[habit]?.[dayIdx] ?? "blank"} onClick={() => onToggle(habit, dayIdx)} day={day} habit={habit} disabled={cellsReadOnly} />
-                        )}
-                      </td>
-                    ))}
+                    {days.map((day, dayIdx) => {
+                      const handleToggle = () => {
+                        if (!isCurrentMonth && !friendView && !isPastUnlocked) {
+                          onUnlockClick?.()
+                          return
+                        }
+                        onToggle(habit, dayIdx)
+                      }
+                      
+                      return (
+                        <td key={dayIdx} className="px-0.5 py-2.5 text-center">
+                          {!isMobile ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="inline-block">
+                                  <CellButton state={grid[habit]?.[dayIdx] ?? "blank"} onClick={handleToggle} day={day} habit={habit} disabled={cellsReadOnly} />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="font-medium">{grid[habit]?.[dayIdx] === "yes" ? "Completed" : grid[habit]?.[dayIdx] === "no" ? "Missed" : "Not recorded"}</p>
+                                <p className="text-[10px] opacity-70">{isCurrentMonth && day === (today?.getDate() ?? new Date().getDate()) ? "Today" : `Day ${day}`}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <CellButton state={grid[habit]?.[dayIdx] ?? "blank"} onClick={handleToggle} day={day} habit={habit} disabled={cellsReadOnly} />
+                          )}
+                        </td>
+                      )
+                    })}
 
                     {hasEyeCol && (
                       <td className="px-2 py-2.5 text-center">

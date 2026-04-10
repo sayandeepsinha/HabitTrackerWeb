@@ -15,6 +15,22 @@ export function computeCurrentStreak(
     let streak = 0
     const current = new Date(today)
 
+    // Check today's status first to allow a "grace period" if it's blank.
+    const todayKey = getMonthKey(current)
+    const todayData = store[todayKey]
+    const todayCell = todayData?.grid[habit]?.[getDate(current) - 1]
+
+    if (todayCell === "no") {
+        return 0 // Explicitly broken today
+    }
+
+    if (todayCell === "blank" || todayCell === undefined) {
+        // Grace period: User hasn't filled out today yet.
+        // The streak is still alive if yesterday was a success, so start counting from yesterday.
+        current.setDate(current.getDate() - 1)
+    }
+
+    // Now count backward continuously looking for "yes"
     while (true) {
         const key = getMonthKey(current)
         const monthData = store[key]
@@ -69,7 +85,7 @@ export function useHabitView(store: HabitStore, today: Date, initialViewDate?: D
         return store[viewMonthKey] ?? null
     }, [store, viewMonthKey])
 
-    const habits = viewMonthData?.habits ?? []
+    const habits = viewMonthData?.habits ?? (viewMonthData?.grid ? Object.keys(viewMonthData.grid) : [])
     const grid = viewMonthData?.grid ?? {}
 
     const canGoNext = useMemo(() => {
