@@ -7,7 +7,7 @@ import { loadFromStorage, saveToStorage } from "@/components/habit-tracker/commo
 import { getMonthKey, useHabitView } from "./use-habit-view"
 
 const STORAGE_KEY = "habit-tracker-data"
-const FALLBACK_HABITS = ["Leetcode", "Workout", "No Sugar", "Meditate"]
+const FALLBACK_HABITS: string[] = []
 
 export function loadStore(): HabitStore {
   return loadFromStorage(STORAGE_KEY, {})

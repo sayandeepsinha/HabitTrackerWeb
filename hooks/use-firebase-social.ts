@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { doc, getDoc, setDoc, onSnapshot, collection, deleteDoc, writeBatch } from "firebase/firestore"
 import type { User } from "firebase/auth"
 import { db } from "@/lib/firebase"
-import type { HabitStore, HiddenHabits, Friend, FriendData, FriendRequest } from "@/components/habit-tracker/common/types"
+import type { HabitStore, HiddenHabits, Friend, FriendData, FriendRequest, GoalInvite } from "@/components/habit-tracker/common/types"
 
 const codeRef = (code: string) => doc(db, "inviteCodes", code)
 const userRef = (uid: string) => doc(db, "users", uid)
@@ -12,11 +12,14 @@ const friendsCol = (uid: string) => collection(db, "users", uid, "friends")
 const friendRef = (uid: string, fUid: string) => doc(db, "users", uid, "friends", fUid)
 const requestsCol = (uid: string) => collection(db, "users", uid, "friendRequests")
 const requestRef = (uid: string, fromUid: string) => doc(db, "users", uid, "friendRequests", fromUid)
+const goalInvitesCol = (uid: string) => collection(db, "users", uid, "goalInvites")
+const goalInviteRef = (uid: string, inviteId: string) => doc(db, "users", uid, "goalInvites", inviteId)
 
 export function useFirebaseSocial(user: User | null, inviteCode: string) {
     const [friends, setFriends] = useState<Friend[]>([])
     const [friendStores, setFriendStores] = useState<Record<string, FriendData>>({})
     const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([])
+    const [goalInvites, setGoalInvites] = useState<GoalInvite[]>([])
     const [addFriendError, setAddFriendError] = useState<string | null>(null)
     const [addFriendLoading, setAddFriendLoading] = useState(false)
 
@@ -28,6 +31,7 @@ export function useFirebaseSocial(user: User | null, inviteCode: string) {
             setFriends([])
             setFriendStores({})
             setFriendRequests([])
+            setGoalInvites([])
         }
     }, [user])
 
@@ -47,6 +51,16 @@ export function useFirebaseSocial(user: User | null, inviteCode: string) {
         const unsub = onSnapshot(requestsCol(user.uid), 
             (snap) => setFriendRequests(snap.docs.map(d => d.data() as FriendRequest)),
             (err) => console.error("requests listener:", err)
+        )
+        return unsub
+    }, [user])
+
+    // Listen for goal invites
+    useEffect(() => {
+        if (!user) return
+        const unsub = onSnapshot(goalInvitesCol(user.uid),
+            (snap) => setGoalInvites(snap.docs.map(d => d.data() as GoalInvite)),
+            (err) => console.error("goal invites listener:", err)
         )
         return unsub
     }, [user])
@@ -78,9 +92,15 @@ export function useFirebaseSocial(user: User | null, inviteCode: string) {
                     setFriendStores(prev => ({
                         ...prev,
                         [friend.uid]: {
-                            friend,
+                            friend: {
+                                ...friend,
+                                displayName: data.profile?.displayName || friend.displayName,
+                                photoURL: data.profile?.photoURL || friend.photoURL,
+                            },
                             store: (data.habits as HabitStore) ?? {},
                             hiddenHabits: (data.hiddenHabits as HiddenHabits) ?? {},
+                            todayMoodEmoji: data.profile?.todayMoodEmoji ?? "",
+                            todayMoodNote: data.profile?.todayMoodNote ?? "",
                         }
                     }))
                 },
@@ -151,15 +171,42 @@ export function useFirebaseSocial(user: User | null, inviteCode: string) {
         await batch.commit().catch(console.error)
     }, [user])
 
+    const sendGoalInvite = useCallback(async (friendUid: string, goalName: string) => {
+        if (!user) return
+        const inviteId = Math.random().toString(36).substring(2, 9)
+        const invite: GoalInvite = {
+            id: inviteId,
+            fromUid: user.uid,
+            fromName: user.displayName || user.email?.split("@")[0] || "Friend",
+            goalName: goalName.trim(),
+            sentAt: Date.now()
+        }
+        await setDoc(goalInviteRef(friendUid, inviteId), invite)
+    }, [user])
+
+    const acceptGoalInvite = useCallback(async (inviteId: string) => {
+        if (!user) return
+        await deleteDoc(goalInviteRef(user.uid, inviteId)).catch(console.error)
+    }, [user])
+
+    const declineGoalInvite = useCallback(async (inviteId: string) => {
+        if (!user) return
+        await deleteDoc(goalInviteRef(user.uid, inviteId)).catch(console.error)
+    }, [user])
+
     return {
         friends,
         friendStores,
         friendRequests,
+        goalInvites,
         sendFriendRequest,
         acceptRequest,
         declineRequest,
         addFriendError,
         addFriendLoading,
-        removeFriend
+        removeFriend,
+        sendGoalInvite,
+        acceptGoalInvite,
+        declineGoalInvite
     }
 }

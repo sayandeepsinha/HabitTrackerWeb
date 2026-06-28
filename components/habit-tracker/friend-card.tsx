@@ -25,10 +25,20 @@ export function FriendCard({ data, today, onRemove }: FriendCardProps) {
                 <div className="flex flex-1 items-center gap-3 min-w-0">
                     <Avatar src={data.friend.photoURL} name={data.friend.displayName} size={36} />
                     <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-sm font-semibold text-foreground">
+                        <span className="truncate text-sm font-semibold text-foreground flex items-center gap-1.5">
                             {data.friend.displayName || data.friend.email}
+                            {data.todayMoodEmoji && (
+                                <span className="inline-flex items-center justify-center text-sm" title="Today's Vibe">
+                                    {data.todayMoodEmoji}
+                                </span>
+                            )}
                         </span>
                         <span className="truncate text-xs text-muted-foreground">{data.friend.email}</span>
+                        {data.todayMoodNote && (
+                            <span className="text-[10px] text-foreground font-medium bg-secondary/50 border border-border/20 px-2 py-0.5 rounded-lg w-fit mt-1 max-w-[200px] truncate leading-tight italic" title={data.todayMoodNote}>
+                                &ldquo;{data.todayMoodNote}&rdquo;
+                            </span>
+                        )}
                     </div>
 
                     {/* Actions on mobile (right side of first row) */}

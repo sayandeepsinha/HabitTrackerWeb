@@ -18,6 +18,10 @@ import { SettingsDialog } from "./settings"
 import { DashboardHeader } from "./dashboard-header"
 import { ResponsiveDialog } from "./common/responsive-dialog"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useMoodTracker } from "@/hooks/use-mood-tracker"
+import { Leaderboards } from "./leaderboards"
+import { EmotionSpace } from "./emotion-space"
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
@@ -57,8 +61,10 @@ export function HabitDashboard() {
       firestoreReady, inviteCode, hiddenHabits, toggleHidden, syncStoreToFirestore, forceSyncStore
   } = useFirebaseSync(user, setStoreDirectly)
   const {
-      friends, friendStores, friendRequests, sendFriendRequest, acceptRequest, declineRequest, addFriendError, addFriendLoading, removeFriend
+      friends, friendStores, friendRequests, goalInvites, sendFriendRequest, acceptRequest, declineRequest, addFriendError, addFriendLoading, removeFriend, sendGoalInvite, acceptGoalInvite, declineGoalInvite
   } = useFirebaseSocial(user, inviteCode)
+
+  const { moods, logMood, loading: moodsLoading } = useMoodTracker(user)
 
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const [isSyncing, setIsSyncing] = React.useState(false)
@@ -153,53 +159,96 @@ export function HabitDashboard() {
       />
 
       <main className="mx-auto max-w-[1440px]">
-        {/* Top Widgets Row */}
-        <DashboardWidgets
-            isMobile={isMobile}
-            weekData={weekData}
-            grid={grid}
-            habits={habits}
-            daysInViewMonth={daysInViewMonth}
-            today={today}
-            viewDate={viewDate}
-            isCurrentMonth={isCurrentMonth}
-        />
+        <Tabs defaultValue="habits" className="space-y-6">
+          <div className="flex justify-center mb-6">
+            <TabsList className="grid w-full grid-cols-3 max-w-md h-11 rounded-full bg-card border border-border/30 p-1 shadow-sm">
+              <TabsTrigger value="habits" className="rounded-full text-xs font-bold transition-all data-[state=active]:bg-secondary data-[state=active]:text-foreground h-full">
+                Habits
+              </TabsTrigger>
+              <TabsTrigger value="leaderboards" className="rounded-full text-xs font-bold transition-all data-[state=active]:bg-secondary data-[state=active]:text-foreground h-full">
+                Leaderboards
+              </TabsTrigger>
+              <TabsTrigger value="emotions" className="rounded-full text-xs font-bold transition-all data-[state=active]:bg-secondary data-[state=active]:text-foreground h-full">
+                Emotion Space
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        {/* Habit Grid */}
-        <HabitGrid
-          habits={habits}
-          grid={grid}
-          daysInMonth={daysInViewMonth}
-          viewDate={viewDate}
-          isCurrentMonth={isCurrentMonth}
-          currentStreaks={currentStreaks}
-          bestStreaks={bestStreaks}
-          onToggle={updateCell}
-          onAddHabit={addHabit}
-          onRemoveHabit={removeHabit}
-          onRenameHabit={renameHabit}
-          onReorderHabit={reorderHabit}
-          hiddenHabits={hiddenHabits}
-          onToggleHidden={toggleHidden}
-          today={today}
-          isPastUnlocked={isPastUnlocked}
-          onUnlockClick={() => setShowUnlockPrompt(true)}
-        />
+          <TabsContent value="habits" className="space-y-6 outline-none focus-visible:outline-none">
+            {/* Top Widgets Row */}
+            <DashboardWidgets
+                isMobile={isMobile}
+                weekData={weekData}
+                grid={grid}
+                habits={habits}
+                daysInViewMonth={daysInViewMonth}
+                today={today}
+                viewDate={viewDate}
+                isCurrentMonth={isCurrentMonth}
+            />
 
-        {/* Friends Section */}
-        <FriendsSection
-          inviteCode={inviteCode}
-          friends={friends}
-          friendStores={friendStores}
-          friendRequests={friendRequests}
-          onSendRequest={sendFriendRequest}
-          onAcceptRequest={acceptRequest}
-          onDeclineRequest={declineRequest}
-          addFriendError={addFriendError}
-          addFriendLoading={addFriendLoading}
-          onRemoveFriend={removeFriend}
-          today={today}
-        />
+            {/* Habit Grid */}
+            <HabitGrid
+              habits={habits}
+              grid={grid}
+              daysInMonth={daysInViewMonth}
+              viewDate={viewDate}
+              isCurrentMonth={isCurrentMonth}
+              currentStreaks={currentStreaks}
+              bestStreaks={bestStreaks}
+              onToggle={updateCell}
+              onAddHabit={addHabit}
+              onRemoveHabit={removeHabit}
+              onRenameHabit={renameHabit}
+              onReorderHabit={reorderHabit}
+              hiddenHabits={hiddenHabits}
+              onToggleHidden={toggleHidden}
+              today={today}
+              isPastUnlocked={isPastUnlocked}
+              onUnlockClick={() => setShowUnlockPrompt(true)}
+            />
+
+            {/* Friends Section */}
+            <FriendsSection
+              inviteCode={inviteCode}
+              friends={friends}
+              friendStores={friendStores}
+              friendRequests={friendRequests}
+              onSendRequest={sendFriendRequest}
+              onAcceptRequest={acceptRequest}
+              onDeclineRequest={declineRequest}
+              addFriendError={addFriendError}
+              addFriendLoading={addFriendLoading}
+              onRemoveFriend={removeFriend}
+              today={today}
+            />
+          </TabsContent>
+
+          <TabsContent value="leaderboards" className="outline-none focus-visible:outline-none">
+            <Leaderboards
+              store={store}
+              friends={friends}
+              friendStores={friendStores}
+              goalInvites={goalInvites}
+              user={user}
+              onAddHabit={addHabit}
+              sendGoalInvite={sendGoalInvite}
+              acceptGoalInvite={acceptGoalInvite}
+              declineGoalInvite={declineGoalInvite}
+              today={today}
+            />
+          </TabsContent>
+
+          <TabsContent value="emotions" className="outline-none focus-visible:outline-none">
+            <EmotionSpace
+              moods={moods}
+              logMood={logMood}
+              loading={moodsLoading}
+              today={today}
+              viewDate={viewDate}
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* Settings Dialog */}
         <SettingsDialog

@@ -18,7 +18,7 @@ const SETTINGS_KEY = "habit-tracker-settings"
 
 const DEFAULT_SETTINGS: UserSettings = {
     weekStartDay: 0,
-    defaultHabits: ["Leetcode", "Workout", "No Sugar", "Meditate"],
+    defaultHabits: [],
 }
 
 // ---------------------------------------------------------------------------
