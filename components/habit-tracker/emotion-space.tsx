@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { getDaysInMonth, format, isToday } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Smile, MessageSquare, Calendar, BarChart3, AlertCircle } from "lucide-react"
-import type { MoodLog, MoodType } from "./common/types"
+import { Smile, MessageSquare, Calendar, BarChart3, AlertCircle, Pencil } from "lucide-react"
+import { FriendsVibeRow } from "./friends-vibe-row"
+import type { Friend, FriendData, MoodLog, MoodType } from "./common/types"
 
 interface EmotionSpaceProps {
   moods: Record<string, MoodLog>
@@ -15,6 +16,8 @@ interface EmotionSpaceProps {
   loading: boolean
   today: Date
   viewDate: Date
+  friends?: Friend[]
+  friendStores?: Record<string, FriendData>
 }
 
 const MOOD_META: Record<
@@ -58,16 +61,41 @@ const MOOD_META: Record<
   },
 }
 
-export function EmotionSpace({ moods, logMood, loading, today, viewDate }: EmotionSpaceProps) {
+const MOOD_IMAGE_URLS: Record<MoodType, string> = {
+  happy: "/emojis/happy.png",
+  calm: "/emojis/calm.png",
+  neutral: "/emojis/neutral.png",
+  stressed: "/emojis/stressed.png",
+  sad: "/emojis/sad.png"
+}
+
+export function EmotionSpace({ moods, logMood, loading, today, viewDate, friends = [], friendStores = {} }: EmotionSpaceProps) {
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null)
   const [note, setNote] = useState("")
   const [shareWithFriends, setShareWithFriends] = useState(false)
   const [logging, setLogging] = useState(false)
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null)
+  const [isEditingJournal, setIsEditingJournal] = useState(false)
+  const [editedNote, setEditedNote] = useState("")
+  const [editedShare, setEditedShare] = useState(false)
 
   // 1. Format dates for queries
   const todayKey = format(today, "yyyy-MM-dd")
   const currentMonthKey = format(viewDate, "yyyy-MM") // "2026-06"
+  const focusedDayKey = selectedDayKey || todayKey
+  const focusedMoodLog = moods[focusedDayKey]
+
+  // Reset editing state and hydrate note when selection changes
+  useEffect(() => {
+    setIsEditingJournal(false)
+    if (focusedMoodLog) {
+      setEditedNote(focusedMoodLog.note || "")
+      setEditedShare(!!focusedMoodLog.shareWithFriends)
+    } else {
+      setEditedNote("")
+      setEditedShare(false)
+    }
+  }, [focusedDayKey, focusedMoodLog])
 
   // Check if today's mood has already been logged
   const todayMood = moods[todayKey]
@@ -111,6 +139,19 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
     }
   }
 
+  const handleSaveEdit = async () => {
+    if (!focusedMoodLog) return
+    setLogging(true)
+    try {
+      await logMood(focusedDayKey, focusedMoodLog.mood, editedNote, editedShare)
+      setIsEditingJournal(false)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLogging(false)
+    }
+  }
+
   // 4. Calculate Stats for the active month
   const activeMonthMoods = Object.entries(moods).filter(([key]) => key.startsWith(currentMonthKey))
   const totalLogs = activeMonthMoods.length
@@ -140,8 +181,6 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
   })
 
   // Selected Day Details
-  const focusedDayKey = selectedDayKey || todayKey
-  const focusedMoodLog = moods[focusedDayKey]
   const isFocusedToday = focusedDayKey === todayKey
 
   // Dominant mood messages
@@ -163,13 +202,19 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <Smile className="h-5 w-5 text-chart-1" /> Emotion Space
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Log how you feel daily and look back on your emotional landscape.
-        </p>
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Smile className="h-5 w-5 text-chart-1" /> Emotion Space
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Log how you feel daily and look back on your emotional landscape.
+          </p>
+        </div>
+
+        {friends.length > 0 && (
+          <FriendsVibeRow friends={friends} friendStores={friendStores} />
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -183,7 +228,7 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
             {todayMood ? (
               <div className="rounded-2xl bg-secondary/30 p-4 border border-border/30 space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-4xl">{MOOD_META[todayMood.mood].emoji}</span>
+                  <img src={MOOD_IMAGE_URLS[todayMood.mood]} alt={todayMood.mood} className="h-11 w-11 object-contain" />
                   <div>
                     <p className="text-sm font-bold text-foreground capitalize">
                       {MOOD_META[todayMood.mood].label}
@@ -215,16 +260,18 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
                   <button
                     key={mood}
                     onClick={() => setSelectedMood(mood)}
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all ${
+                    className={`flex flex-col items-center justify-center p-1 sm:p-2.5 aspect-square rounded-2xl border text-center transition-all ${
                       isSelected
                         ? "bg-accent border-chart-1 scale-105 shadow-[0_0_12px_rgba(var(--chart-1),0.2)]"
                         : "bg-secondary/40 border-border/20 hover:bg-secondary/80"
                     }`}
                   >
-                    <span className="text-2xl mb-1.5 transition-transform hover:scale-110 active:scale-95 duration-100">
-                      {meta.emoji}
-                    </span>
-                    <span className="text-[9px] font-semibold text-foreground leading-none">
+                    <img
+                      src={MOOD_IMAGE_URLS[mood]}
+                      alt={meta.label}
+                      className="h-6 w-6 sm:h-8 sm:w-8 object-contain mb-1 transition-transform hover:scale-110 active:scale-95 duration-100"
+                    />
+                    <span className="text-[8px] sm:text-[10px] font-bold text-foreground leading-none truncate w-full">
                       {meta.label}
                     </span>
                   </button>
@@ -286,34 +333,95 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
             </h3>
 
             {focusedMoodLog ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-3xl">{MOOD_META[focusedMoodLog.mood].emoji}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${MOOD_META[focusedMoodLog.mood].bgBadge}`}>
-                      {MOOD_META[focusedMoodLog.mood].label}
-                    </span>
-                    {focusedMoodLog.shareWithFriends && (
-                      <span className="text-[9px] font-bold text-muted-foreground/80 bg-secondary px-2 py-0.5 rounded-full">
-                        Shared with Friends
-                      </span>
-                    )}
+              isEditingJournal ? (
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                      <MessageSquare className="h-3.5 w-3.5" /> Edit Journal Note
+                    </label>
+                    <Textarea
+                      placeholder="Brief details about your day... what made you feel this way?"
+                      value={editedNote}
+                      onChange={(e) => setEditedNote(e.target.value)}
+                      rows={3}
+                      className="rounded-xl border border-border bg-background focus-visible:ring-1 focus-visible:ring-ring text-xs p-3 focus-visible:ring-offset-0"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 pt-1 pb-1.5">
+                    <Checkbox
+                      id="edit-share-mood"
+                      checked={editedShare}
+                      onCheckedChange={(checked) => setEditedShare(!!checked)}
+                      className="rounded-md"
+                    />
+                    <label htmlFor="edit-share-mood" className="text-xs text-foreground font-semibold cursor-pointer select-none">
+                      Share journal note with friends
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingJournal(false)}
+                      disabled={logging}
+                      className="rounded-xl h-9 px-4 text-xs font-semibold"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSaveEdit}
+                      disabled={logging}
+                      className="rounded-xl h-9 px-4 text-xs font-semibold bg-accent text-accent-foreground hover:bg-chart-1/30"
+                    >
+                      {logging ? "Saving…" : "Save Changes"}
+                    </Button>
                   </div>
                 </div>
-                
-                {focusedMoodLog.note && (
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Journal Note</p>
-                    <p className="text-xs text-foreground bg-secondary/35 p-3 rounded-xl border border-border/20 leading-relaxed font-medium">
-                      {focusedMoodLog.note}
-                    </p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <img src={MOOD_IMAGE_URLS[focusedMoodLog.mood]} alt={focusedMoodLog.mood} className="h-9 w-9 object-contain" />
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${MOOD_META[focusedMoodLog.mood].bgBadge}`}>
+                        {MOOD_META[focusedMoodLog.mood].label}
+                      </span>
+                      {focusedMoodLog.shareWithFriends && (
+                        <span className="text-[9px] font-bold text-muted-foreground/80 bg-secondary px-2 py-0.5 rounded-full">
+                          Shared with Friends
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
+                  
+                  {focusedMoodLog.note && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Journal Note</p>
+                      <p className="text-xs text-foreground bg-secondary/35 p-3 rounded-xl border border-border/20 leading-relaxed font-medium">
+                        {focusedMoodLog.note}
+                      </p>
+                    </div>
+                  )}
 
-                {!focusedMoodLog.note && (
-                  <p className="text-xs text-muted-foreground/60 italic">No journal notes written for this check-in.</p>
-                )}
-              </div>
+                  {!focusedMoodLog.note && (
+                    <p className="text-xs text-muted-foreground/60 italic">No journal notes written for this check-in.</p>
+                  )}
+
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditedNote(focusedMoodLog.note || "")
+                        setEditedShare(!!focusedMoodLog.shareWithFriends)
+                        setIsEditingJournal(true)
+                      }}
+                      className="rounded-xl h-9 px-4 text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:bg-secondary/80 border-border"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit Journal
+                    </Button>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="text-center py-6">
                 <AlertCircle className="h-6 w-6 text-muted-foreground/40 mx-auto mb-2" />
@@ -364,14 +472,14 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
                   <button
                     key={cell.dateKey}
                     onClick={() => setSelectedDayKey(cell.dateKey)}
-                    className={`aspect-square rounded-xl border flex items-center justify-center relative transition-all hover:scale-105 active:scale-95 ${
+                    className={`aspect-square rounded-xl border flex items-center justify-center relative transition-all ${
                       meta
                         ? meta.calendarColor
                         : "bg-secondary/30 border-border/20 text-muted-foreground hover:bg-secondary/60"
                     } ${
                       isSelected
-                        ? "ring-2 ring-primary ring-offset-2 ring-offset-card shadow-md scale-105"
-                        : ""
+                        ? "ring-2 ring-inset ring-primary shadow-xs"
+                        : "hover:border-primary/40"
                     } ${
                       isDayToday && !meta
                         ? "border-chart-1 text-chart-1 font-bold shadow-[0_0_8px_rgba(var(--chart-1),0.15)]"
@@ -383,9 +491,11 @@ export function EmotionSpace({ moods, logMood, loading, today, viewDate }: Emoti
                         <span className="absolute top-1 left-1.5 text-[9px] opacity-60 leading-none select-none font-semibold">
                           {cell.dayNum}
                         </span>
-                        <span className="text-2xl pt-1.5 select-none leading-none pointer-events-none">
-                          {meta?.emoji}
-                        </span>
+                        <img
+                          src={MOOD_IMAGE_URLS[moodLog.mood]}
+                          alt={moodLog.mood}
+                          className="h-7 w-7 object-contain pt-1.5 select-none leading-none pointer-events-none"
+                        />
                       </>
                     ) : (
                       <span className="text-xs font-semibold">{cell.dayNum}</span>

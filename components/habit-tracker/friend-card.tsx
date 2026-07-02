@@ -7,7 +7,23 @@ import { Avatar } from "./common/avatar"
 import { SmallCrossIcon, ChevronDownIcon } from "./common/icons"
 import { MonthNav } from "./common/month-nav"
 import { ConfirmAction } from "./common/confirm-action"
-import type { FriendData } from "./common/types"
+import type { FriendData, MoodType } from "./common/types"
+
+const EMOJI_TO_MOOD: Record<string, MoodType> = {
+  "😊": "happy",
+  "😌": "calm",
+  "😐": "neutral",
+  "😫": "stressed",
+  "😢": "sad"
+}
+
+const MOOD_IMAGE_URLS: Record<MoodType, string> = {
+  happy: "/emojis/happy.png",
+  calm: "/emojis/calm.png",
+  neutral: "/emojis/neutral.png",
+  stressed: "/emojis/stressed.png",
+  sad: "/emojis/sad.png"
+}
 
 interface FriendCardProps {
     data: FriendData
@@ -28,9 +44,12 @@ export function FriendCard({ data, today, onRemove }: FriendCardProps) {
                         <span className="truncate text-sm font-semibold text-foreground flex items-center gap-1.5">
                             {data.friend.displayName || data.friend.email}
                             {data.todayMoodEmoji && (
-                                <span className="inline-flex items-center justify-center text-sm" title="Today's Vibe">
-                                    {data.todayMoodEmoji}
-                                </span>
+                                <img
+                                    src={MOOD_IMAGE_URLS[EMOJI_TO_MOOD[data.todayMoodEmoji]]}
+                                    alt={data.todayMoodEmoji}
+                                    className="h-4.5 w-4.5 object-contain"
+                                    title="Today's Vibe"
+                                />
                             )}
                         </span>
                         <span className="truncate text-xs text-muted-foreground">{data.friend.email}</span>

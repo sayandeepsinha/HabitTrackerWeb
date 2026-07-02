@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { ChevronUpIcon, ChevronDownIcon, SmallCrossIcon, EyeIcon, EyeOffIcon, PencilIcon, TrashIcon, ArrowsUpDownIcon, InfoIcon, PeopleIcon } from "./common/icons"
+import { Button } from "@/components/ui/button"
+import { PlusCircle, Users } from "lucide-react"
 import { GridBanners } from "./grid-banners"
 import { GridHeader } from "./grid-header"
 
@@ -226,7 +228,7 @@ export function HabitGrid({
               })}
 
               {/* Add habit row */}
-              {isCurrentMonth && !friendView && (
+              {isCurrentMonth && !friendView && (visibleHabits.length > 0 || isAdding) && (
                 <tr className="transition-colors hover:bg-secondary/20">
                   <td className="sticky left-0 z-30 w-[155px] min-w-[155px] max-w-[155px] sm:w-[210px] sm:min-w-[210px] sm:max-w-[210px] border-b border-border/50 bg-card px-4 sm:px-5 py-3">
                     {isAdding ? (
@@ -255,8 +257,38 @@ export function HabitGrid({
               {/* Empty state */}
               {!visibleHabits.length && (
                 <tr>
-                  <td colSpan={daysInMonth + (hasEyeCol ? 2 : 1)} className="px-5 py-12 text-center">
-                    <p className="text-sm text-muted-foreground">{friendView ? "No visible habits this month" : "No data recorded for this month"}</p>
+                  <td colSpan={daysInMonth + (hasEyeCol ? 2 : 1)} className="px-5 py-16 text-center">
+                    {friendView ? (
+                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-4 py-6">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary/60 text-muted-foreground/80">
+                          <Users className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold text-foreground">Nothing tracked yet</p>
+                          <p className="text-xs text-muted-foreground/80 leading-relaxed">
+                            Your buddy hasn&apos;t started tracking any habits this month. Check back later or challenge them to a goal!
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-5 py-6">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/20 text-accent-foreground shadow-xs animate-bounce">
+                          <PlusCircle className="h-6 w-6 text-chart-1" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="text-sm font-bold text-foreground">Welcome to Habit Tracker!</p>
+                          <p className="text-xs text-muted-foreground/90 leading-relaxed">
+                            Start planting the seeds of consistency by adding your very first habit to track this month.
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={() => setIsAdding(true)} 
+                          className="rounded-xl bg-accent hover:bg-chart-1/30 text-accent-foreground px-4 py-2 font-bold text-xs h-9 shadow-xs transition-all cursor-pointer"
+                        >
+                          Add Your First Habit
+                        </Button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )}
