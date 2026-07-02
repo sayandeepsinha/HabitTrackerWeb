@@ -27,6 +27,8 @@ export interface FriendData {
   friend: Friend
   store: HabitStore
   hiddenHabits: HiddenHabits
+  todayMoodEmoji?: string
+  todayMoodNote?: string
 }
 
 /** An incoming friend request stored in Firestore */
@@ -37,3 +39,24 @@ export interface FriendRequest {
   photoURL: string
   sentAt: number
 }
+
+/** A goal invite sent by a friend */
+export interface GoalInvite {
+  id: string
+  fromUid: string
+  fromName: string
+  goalName: string
+  sentAt: number
+}
+
+/** Supported moods */
+export type MoodType = "happy" | "calm" | "neutral" | "stressed" | "sad"
+
+/** A daily mood log stored in Firestore */
+export interface MoodLog {
+  mood: MoodType
+  note?: string
+  shareWithFriends?: boolean
+  updatedAt: number
+}
+

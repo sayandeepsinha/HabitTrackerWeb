@@ -6,6 +6,7 @@ import { CheckIcon, CrossIcon, ChevronDownIcon, SettingsIcon, SignOutIcon, Refre
 import { MonthNav } from "./common/month-nav"
 import { ResponsiveDialog } from "./common/responsive-dialog"
 import { Button } from "@/components/ui/button"
+import { HelpCircle } from "lucide-react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -29,12 +30,13 @@ interface DashboardHeaderProps {
     isSyncing?: boolean
     isPastUnlocked?: boolean
     onUnlockClick?: () => void
+    onOpenTutorial?: () => void
 }
 
 export function DashboardHeader({
     viewDate, isCurrentMonth, canGoNext, goToPrevMonth, goToNextMonth,
     user, onOpenSettings, signOut, isMobile, onSyncClick, isSyncing,
-    isPastUnlocked, onUnlockClick
+    isPastUnlocked, onUnlockClick, onOpenTutorial
 }: DashboardHeaderProps) {
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false)
     const [minSpin, setMinSpin] = React.useState(false)
@@ -86,6 +88,13 @@ export function DashboardHeader({
 
                 {/* Legend + Sync + User */}
                 <div className="flex items-center gap-4">
+                    {onOpenTutorial && (
+                        <div role="button" tabIndex={0} onClick={onOpenTutorial} className={`flex cursor-pointer items-center justify-center rounded-xl bg-card transition-colors hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-[0_1px_8px_rgba(0,0,0,0.04)] ${isMobile ? "h-8 w-8" : "px-3 py-1.5 h-[36px]"}`} title="Open Onboarding Guide">
+                            <HelpCircle size={14} className="text-foreground" />
+                            {!isMobile && <span className="ml-2 text-xs font-medium text-foreground">Guide</span>}
+                        </div>
+                    )}
+
                     {onSyncClick && (
                         <div role="button" tabIndex={0} onClick={handleSyncClick} className={`flex cursor-pointer items-center justify-center rounded-xl bg-card transition-colors hover:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-[0_1px_8px_rgba(0,0,0,0.04)] ${isMobile ? "h-8 w-8" : "px-3 py-1.5 h-[36px]"}`}>
                             <RefreshCwIcon size={isMobile ? 14 : 14} className={(isSyncing || minSpin) ? 'animate-spin' : ''} style={(isSyncing || minSpin) ? { animationDirection: 'reverse' } : {}} />
